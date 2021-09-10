@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "BladeEngine.CLI": {
+      "commandName": "Project",
+      "commandLineArgs": "c# -i a.blade -debug"
+    }
+  }
+}

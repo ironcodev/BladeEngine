@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="CSharp\**" />
+    <Compile Remove="Java\**" />
+    <EmbeddedResource Remove="CSharp\**" />
+    <EmbeddedResource Remove="Java\**" />
+    <None Remove="CSharp\**" />
+    <None Remove="Java\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+  </ItemGroup>
+
+</Project>
