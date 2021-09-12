@@ -16,37 +16,29 @@ import java.security.MessageDigest;";
         {
             return $@"
 {ExternalCode}
-    public class {GetMainClassName()}
-    {{
+    public class {GetMainClassName()} {{
         StringBuilder _buffer;
-        private boolean isNullOrEmpty(String str)
-        {{
+        boolean isNullOrEmpty(String str) {{
             return str == null || str.isEmpty();
         }}
-        public {GetMainClassName()}()
-        {{
+        public {GetMainClassName()}() {{
             _buffer = new StringBuilder();
         }}
-        // #region Encode/Decode Helpers
-        protected virtual String htmlEncode(String s)
-        {{
+        // Encode/Decode Helpers
+        protected String htmlEncode(String s) {{
             return StringEscapeUtils.escapeHtml4(s);
         }}
-        protected virtual String htmlDecode(String s)
-        {{
+        protected String htmlDecode(String s) {{
             return StringEscapeUtils.unescapeHtml4(s);
         }}
-        protected virtual String urlEncode(String s)
-        {{
-            if (!isNullOrEmpty(s))
-            {{
+        protected String urlEncode(String s) {{
+            if (!isNullOrEmpty(s)) {{
                 int i = s.indexOf('?');
                 String query = s.substring(i + 1);
                 String[] parts = query.split(""&"");
                 String encodedParts = """";
 
-                for (String part : parts)
-                {{
+                for (String part : parts) {{
                     String[] arr = part.split(""="");
 
                     encodedParts += (isNullOrEmpty(encodedParts) ? """" : ""&"") + URLEncoder.encode(arr[0]) + (arr.length > 1 ? ""="" + URLEncoder.encode(arr[1]) : """");
@@ -57,20 +49,16 @@ import java.security.MessageDigest;";
 
             return """";
         }}
-        protected virtual String fullUrlEncode(String s)
-        {{
+        protected String fullUrlEncode(String s) {{
             return URLEncoder.encode(s);
         }}
-        protected virtual String urlDecode(String s)
-        {{
+        protected String urlDecode(String s) {{
             return URLEncoder.decode(s);
         }}
-        protected virtual String fullUrlDecode(String s)
-        {{
+        protected String fullUrlDecode(String s) {{
             return URLEncoder.decode(s);
         }}
-        protected virtual String md5(String s)
-        {{
+        protected String md5(String s) {{
             MessageDigest md = MessageDigest.getInstance(""MD5"");
             md.update(s.getBytes(StandardCharsets.UTF_8));
             byte[] digest = md.digest();
@@ -78,17 +66,13 @@ import java.security.MessageDigest;";
 
             return result;
         }}
-        protected virtual String base64Encode(String s)
-        {{
+        protected String base64Encode(String s) {{
             return Base64.getEncoder().encodeToString(s.getBytes(StandardCharsets.UTF_8));
         }}
-        protected virtual String base64Decode(String s)
-        {{
+        protected String base64Decode(String s) {{
             return Base64.getDecoder().decode(s);
         }}
-        // #endregion
-        public String Render()
-        {{
+        public String render() {{
             {Body}
             String result = _buffer.toString();
 

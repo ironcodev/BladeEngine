@@ -5,7 +5,7 @@ namespace BladeEngine.Java
 {
     public class BladeEngineJava : BladeEngineBase<BladeEngineConfigJava>
     {
-        public BladeEngineJava() : this(new BladeEngineConfigJava())
+        public BladeEngineJava(): this(new BladeEngineConfigJava())
         { }
         public BladeEngineJava(BladeEngineConfigJava config) : base(config)
         {

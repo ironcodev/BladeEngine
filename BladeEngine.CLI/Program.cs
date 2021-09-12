@@ -1,5 +1,7 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using BladeEngine.Core;
 using BladeEngine.CSharp;
 using BladeEngine.Java;
@@ -12,15 +14,15 @@ namespace BladeEngine.CLI
         static void Help()
         {
             Console.WriteLine(@"
-blade [runner] [engine] [-i input-template] [-o output] [-os] [-r runner-output] [-rs] [-c engine config] [-m model] [-debug]
+blade [runner] [engine] [-i input-template] [-o output] [-on] [-r runner-output] [-rn] [-c engine config] [-m model] [-debug]
     runner  :   execute template
     engine  :   language engine to parse the template. supported languages are:
                     c#, java, python, javascript
     -i      :   input balde template to compile
     -o      :   filename to save generated content into.
-    -ow     :   do not overwrite output if already exists
+    -on     :   do not overwrite output if already exists
     -r      :   in case of using 'runner', a filename to save the result of executing generated code
-    -rs     :   do not overwrite runner output if already exists
+    -rn     :   do not overwrite runner output if already exists
     -c      :   engine config in json format
     -m      :   model in json format or a filename containing model in json format
     -debug  :   execute runner in debug mode
@@ -32,36 +34,91 @@ example:
     blade runner c# -i my-template.blade -m ""{ 'name': 'John Doe' }""
 ");
         }
-        static string GetEngine(string arg)
+        static string GetAssemblyPath(string arg)
         {
-            var result = "";
-
-            if (string.Compare(arg, "c#", true) == 0 ||
-                string.Compare(arg, "java", true) == 0 ||
-                string.Compare(arg, "python", true) == 0 ||
-                string.Compare(arg, "javascript", true) == 0)
-            {
-                result = arg.ToLower();
-            }
-
-            return result;
-        }
-        
-        static bool Validate(BladeEngineOptions options)
-        {
-            var result = false;
+            string result;
 
             do
             {
-                if (string.IsNullOrEmpty(options.Engine))
+                result = Path.Combine(Environment.CurrentDirectory, "\\BladeEngine." + arg + ".dll");
+
+                if (File.Exists(result))
                 {
-                    logger.LogLn("No engine specified or specified engine is invalid. Supported engines are: c#, java, python, javascript");
+                    break;
+                }
+
+                result = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "\\BladeEngine." + arg + ".dll");
+
+                if (File.Exists(result))
+                {
+                    break;
+                }
+
+                result = Path.Combine(Environment.CurrentDirectory, "\\" + arg + ".dll");
+
+                if (File.Exists(result))
+                {
+                    break;
+                }
+
+                result = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "\\" + arg + ".dll");
+
+                if (File.Exists(result))
+                {
+                    break;
+                }
+
+                result = null;
+            } while (false);
+
+            return result;
+        }
+        static bool Validate(BladeEngineOptions options, out BladeRunner runner)
+        {
+            var result = false;
+
+            runner = null;
+
+            do
+            {
+                if (!string.IsNullOrEmpty(options.EngineLibraryPath))
+                {
+                    var assembly = logger.Try($"Loading Engine assembly '{options.EngineLibraryPath}' ...", options.Debug, () => Assembly.LoadFrom(options.EngineLibraryPath));
+
+                    if (assembly != null)
+                    {
+                        var runnerType = logger.Try($"Finding runner ...", options.Debug, () => assembly.GetTypes().FirstOrDefault(t => t.DescendsFrom(typeof(BladeRunner))));
+
+                        if (runnerType == null)
+                        {
+                            logger.Log($"Could not find a runner in '{options.Engine}' engine assembly that is derived from BladeRunner base class.");
+                            break;
+                        }
+                        else
+                        {
+                            runner = logger.Try($"Instantiating runner ...", options.Debug, () => (BladeRunner)Activator.CreateInstance(runnerType, logger, options));
+
+                            if (runner == null)
+                            {
+                                logger.Abort($"Instantiating '{options.Engine}' runner failed", !options.Debug);
+                                break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        logger.Abort($"Loading '{options.Engine}' engine assembly failed", !options.Debug);
+                    }
+                }
+                else
+                {
+                    logger.Log("No engine specified or specified engine is invalid.");
                     break;
                 }
 
                 if (string.IsNullOrEmpty(options.InputFile))
                 {
-                    logger.LogLn("No input template is specified.");
+                    logger.Log("No input template is specified to be compiled.");
                     break;
                 }
 
@@ -72,7 +129,7 @@ example:
 
                 if (!File.Exists(options.InputFile))
                 {
-                    logger.LogLn($"input file {options.InputFile} does not exist.");
+                    logger.Log($"input file '{options.InputFile}' does not exist.");
                     break;
                 }
 
@@ -85,35 +142,16 @@ example:
 
                     if (File.Exists(options.OutputFile) && options.DontOverwriteExistingOutputFile)
                     {
-                        logger.LogLn($"output file {options.OutputFile} already exist.");
+                        logger.Log($"output file '{options.OutputFile}' already exists.");
                         break;
                     }
                 }
                 else
                 {
                     var filename = Path.GetFileNameWithoutExtension(options.InputFile);
-                    var extension = "";
 
-                    switch (options.Engine)
-                    {
-                        case "c#":
-                            extension = ".cs";
-                            break;
-                        case "java":
-                            extension = ".java";
-                            break;
-                        case "python":
-                            extension = ".py";
-                            break;
-                        case "javascript":
-                            extension = ".js";
-                            break;
-                        default:
-                            extension = ".txt";
-                            break;
-                    }
-
-                    options.OutputFile = Path.Combine(Path.GetDirectoryName(options.InputFile), filename + extension);
+                    options.OutputFile = Path.Combine(Path.GetDirectoryName(options.InputFile), filename + runner.Config.FileExtension);
+                    options.ManualOutput = true;
                 }
 
                 if (options.Runner)
@@ -127,7 +165,7 @@ example:
 
                         if (File.Exists(options.RunnerOutputFile) && options.DontOverwriteExistingRunnerOutputFile)
                         {
-                            logger.LogLn($"runner output file {options.RunnerOutputFile} already exist.");
+                            logger.Log($"runner output file '{options.RunnerOutputFile}' already exist.");
                             break;
                         }
                     }
@@ -140,25 +178,24 @@ example:
 
                     if (!string.IsNullOrEmpty(options.GivenModel))
                     {
-                        if (options.GivenModel.IndexOf('{') < 0)
+                        options.GivenModel = options.GivenModel.Trim();
+
+                        if (!(options.GivenModel.StartsWith("{") && options.GivenModel.EndsWith("}")))  // if model is not json, assume it as a file
                         {
                             options.ModelPath = Path.IsPathRooted(options.GivenModel) ? options.GivenModel : Path.Combine(Environment.CurrentDirectory, options.GivenModel);
-                            
+
                             if (!File.Exists(options.ModelPath))
                             {
-                                logger.LogLn($"model file {options.ModelPath} not found.");
+                                logger.Log($"model file '{options.ModelPath}' not found.");
                                 break;
                             }
 
-                            try
+                            if (!logger.Try($"Reading model file {options.ModelPath}", options.Debug, () =>
                             {
                                 options.GivenModel = File.ReadAllText(options.ModelPath);
-                            }
-                            catch (Exception e)
+                            }))
                             {
-                                logger.LogLn($"Error reading model file {options.ModelPath}");
-                                logger.Log(e);
-
+                                logger.Abort($"Reading model file '{options.ModelPath}' failed", !options.Debug);
                                 break;
                             }
                         }
@@ -181,13 +218,6 @@ example:
             for (var i = 0; i < args.Length; i++)
             {
                 var arg = args[i];
-                var engine = GetEngine(arg);
-
-                if (!string.IsNullOrEmpty(engine))
-                {
-                    result.Engine = engine;
-                    continue;
-                }
 
                 if (arg == "runner")
                 {
@@ -201,19 +231,17 @@ example:
                     continue;
                 }
 
-                if (arg == "-os")
+                if (arg == "-on")
                 {
                     result.DontOverwriteExistingOutputFile = true;
                     continue;
                 }
 
-                if (arg == "-rs")
+                if (arg == "-rn")
                 {
                     result.DontOverwriteExistingRunnerOutputFile = true;
                     continue;
                 }
-
-                
 
                 if (arg == "-i")
                 {
@@ -259,6 +287,14 @@ example:
                         continue;
                     }
                 }
+
+                result.EngineLibraryPath = GetAssemblyPath(arg);
+
+                if (!string.IsNullOrEmpty(result.EngineLibraryPath))
+                {
+                    result.Engine = arg.ToLower();
+                    continue;
+                }
             }
 
             return result;
@@ -273,20 +309,10 @@ example:
             {
                 var options = GetOptions(args);
 
-                if (Validate(options))
+                BladeRunner runner;
+
+                if (Validate(options, out runner))
                 {
-                    BladeRunner runner = null;
-
-                    switch (options.Engine)
-                    {
-                        case "c#":
-                            runner = new BladeRunnerCSharp(logger, options);
-                            break;
-                        case "java":
-                            runner = new BladeRunnerJava(logger, options);
-                            break;
-                    }
-
                     runner.Run();
                 }
             }

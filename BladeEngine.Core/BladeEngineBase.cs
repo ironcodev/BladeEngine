@@ -11,28 +11,10 @@ namespace BladeEngine.Core
 {
     public abstract partial class BladeEngineBase
     {
-        private BladeEngineConfigBase _config;
-        public BladeEngineConfigBase Config
-        {
-            get
-            {
-                if (_config == null)
-                {
-                    _config = new BladeEngineConfigBase();
-                }
-
-                return _config;
-            }
-            set
-            {
-                _config = value;
-            }
-        }
-        public BladeEngineBase()
-        { }
+        public BladeEngineConfigBase Config { get; set; }
         public BladeEngineBase(BladeEngineConfigBase config)
         {
-            _config = config;
+            Config = config;
         }
         protected abstract string WriteLiteral(string literal);
         protected abstract string WriteValue(string value);

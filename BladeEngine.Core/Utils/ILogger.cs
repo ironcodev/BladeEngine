@@ -15,6 +15,6 @@ namespace BladeEngine.Core
     }
     public interface ILogger
     {
-        void Log(string message, LogType logType);
+        void Log(string message, LogType logType, bool addLogSeparator = true);
     }
 }

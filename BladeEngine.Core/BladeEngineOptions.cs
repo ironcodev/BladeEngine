@@ -4,8 +4,10 @@
     {
         public bool Debug { get; set; }
         public string Engine { get; set; }
+        public string EngineLibraryPath { get; set; }
         public string InputFile { get; set; }
         public string OutputFile { get; set; }
+        public bool ManualOutput { get; set; }
         public bool DontOverwriteExistingOutputFile { get; set; }
         public string RunnerOutputFile { get; set; }
         public bool DontOverwriteExistingRunnerOutputFile { get; set; }

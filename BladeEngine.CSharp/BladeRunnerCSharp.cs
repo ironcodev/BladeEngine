@@ -1,19 +1,19 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Text;
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
-using BladeEngine.Core;
 using Newtonsoft.Json;
+using BladeEngine.Core;
 using BladeEngine.Core.Base.Exceptions;
-using System.Net;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace BladeEngine.CSharp
 {
@@ -33,7 +33,7 @@ namespace BladeEngine.CSharp
                 }
                 catch (Exception e)
                 {
-                    Logger.LogLn("Error deserializing model");
+                    Logger.Log("Error deserializing model");
                     Logger.Log(e);
                 }
             }
@@ -62,51 +62,20 @@ namespace BladeEngine.CSharp
 
             if (!Directory.Exists(currentPath + "\\cache"))
             {
-                try
-                {
-                    Directory.CreateDirectory(currentPath + "\\cache");
-
-                    if (Options.Debug)
-                    {
-                        Logger.DebugLn("Cache directory created at '" + currentPath + "\\cache'");
-                    }
-                }
-                catch (Exception e)
-                {
-                    if (Options.Debug)
-                    {
-                        Logger.DebugLn("Creating Cache directory at '" + currentPath + "\\cache' failed.");
-                        Logger.Log(e);
-                    }
-                }
+                Logger.Try($"Creating cache directory at '" + currentPath + "\\cache'", Options.Debug, () => Directory.CreateDirectory(currentPath + "\\cache"));
             }
 
             var existingCompiledAssembly = Path.Combine(currentPath + "\\cache", md5 + ".dll");
-            var ok = true;
+            var createAssembly = true;
 
             if (File.Exists(existingCompiledAssembly))
             {
-                try
-                {
-                    result = Assembly.LoadFrom(existingCompiledAssembly);
-                    ok = false;
+                result = Logger.Try($"Loading existing assembly at '" + existingCompiledAssembly + "'", Options.Debug, () => Assembly.LoadFrom(existingCompiledAssembly));
 
-                    if (Options.Debug)
-                    {
-                        Logger.DebugLn("Existing cached assembly at '" + existingCompiledAssembly + "' successfully loaded.");
-                    }
-                }
-                catch (Exception e)
-                {
-                    if (Options.Debug)
-                    {
-                        Logger.DebugLn("Loading existing cached assembly from '" + existingCompiledAssembly + "' failed.");
-                        Logger.Log(e);
-                    }
-                }
+                createAssembly = result == null;
             }
             
-            if (ok)
+            if (createAssembly)
             {
                 var syntaxTree = CSharpSyntaxTree.ParseText(RenderedTemplate);
                 var assemblyName = Path.GetRandomFileName();
@@ -126,9 +95,9 @@ namespace BladeEngine.CSharp
                     Path.Combine(Path.GetDirectoryName(typeof(System.Runtime.GCSettings).GetTypeInfo().Assembly.Location), "System.Runtime.dll")
                 };
 
-                if (Config.References != null && Config.References.Count > 0)
+                if (StrongConfig.References != null && StrongConfig.References.Count > 0)
                 {
-                    foreach (var reference in Config.References.Where(r => !string.IsNullOrEmpty(r)))
+                    foreach (var reference in StrongConfig.References.Where(r => !string.IsNullOrEmpty(r)))
                     {
                         var toAdd = "";
 
@@ -159,14 +128,14 @@ namespace BladeEngine.CSharp
 
                 if (Options.Debug)
                 {
-                    Logger.DebugLn("Adding references ...");
+                    Logger.Debug("Adding references ...");
 
                     foreach (var r in refPaths)
                     {
-                        Logger.DebugLn(r);
+                        Logger.Debug(r);
                     }
 
-                    Logger.DebugLn(Environment.NewLine + "Compiling ...");
+                    Logger.Debug(Environment.NewLine + "Compiling ...");
                 }
 
                 CSharpCompilation compilation = CSharpCompilation.Create(
@@ -181,7 +150,7 @@ namespace BladeEngine.CSharp
 
                     if (!er.Success)
                     {
-                        Logger.DangerLn("Failed!" + Environment.NewLine);
+                        Logger.Danger("Failed!" + Environment.NewLine);
 
                         IEnumerable<Diagnostic> failures = er.Diagnostics.Where(diagnostic =>
                             diagnostic.IsWarningAsError ||
@@ -189,22 +158,21 @@ namespace BladeEngine.CSharp
 
                         foreach (Diagnostic diagnostic in failures)
                         {
-                            Logger.DangerLn($"\t{diagnostic.Id}: {diagnostic.GetMessage()}");
+                            Logger.Danger($"\t{diagnostic.Id}: {diagnostic.GetMessage()}");
                         }
                     }
                     else
                     {
                         if (Options.Debug)
                         {
-                            Logger.SuccessLn("Succeeded");
-                            Logger.DebugLn($"Saving compiled assembly into cache '{existingCompiledAssembly}' ...");
+                            Logger.Success("Succeeded");
                         }
 
                         ms.Seek(0, SeekOrigin.Begin);
 
                         result = AssemblyLoadContext.Default.LoadFromStream(ms);
 
-                        try
+                        Logger.Try($"Saving compiled assembly into cache '{existingCompiledAssembly}' ...", Options.Debug, () =>
                         {
                             ms.Seek(0, SeekOrigin.Begin);
 
@@ -218,33 +186,20 @@ namespace BladeEngine.CSharp
 
                                 ms.Close();
                             }
-
-                            if (Options.Debug)
-                            {
-                                Logger.SuccessLn("Succeeded");
-                            }
-                        }
-                        catch (Exception e)
-                        {
-                            if (Options.Debug)
-                            {
-                                Logger.DangerLn("Failed");
-                                Logger.Log(e);
-                            }
-                        }
+                        });
                     }
                 }
             }
 
             return result;
         }
-        protected override string Execute()
+        protected override bool Execute(out string result)
         {
-            var result = "";
+            result = "";
 
             if (string.IsNullOrEmpty(RenderedTemplate))
             {
-                throw new BladeEngineException("BladeEngineCSharp did not produce any code to be executed!");
+                throw new BladeEngineException("No code is produced to be executed!");
             }
             else
             {
@@ -253,37 +208,48 @@ namespace BladeEngine.CSharp
 
                 if (assembly != null)
                 {
-                    if (Options.Debug)
-                    {
-                        Logger.DebugLn("Instantiating and executing the code ...");
-                    }
-
-                    var templateMainClass = Config.Namespace + "." + Template.GetMainClassName();
+                    var templateMainClass = StrongConfig.Namespace + "." + Template.GetMainClassName();
                     var templateType = assembly.GetType(templateMainClass);
-                    var templateInstance = assembly.CreateInstance(templateMainClass);
-                    var method = templateType.GetMethod("Render");
 
-                    if (method != null)
+                    if (templateType != null)
                     {
-                        result = method.Invoke(templateInstance, new object[] { model })?.ToString();
-                        
-                        if (Options.Debug)
+                        var templateInstance = Logger.Try($"Instantiating from {templateMainClass} ...", Options.Debug, () => assembly.CreateInstance(templateMainClass));
+
+                        if (templateInstance != null)
                         {
-                            Logger.SuccessLn("Done");
+                            var method = templateType.GetMethod("Render");
+
+                            if (method != null)
+                            {
+                                var parameters = method.GetParameters();
+
+                                if (parameters.Length == 0)
+                                {
+                                    result = method.Invoke(templateInstance, new object[] { })?.ToString();
+                                }
+                                else if (parameters.Length == 1)
+                                {
+                                    result = method.Invoke(templateInstance, new object[] { model })?.ToString();
+                                }
+                                else
+                                {
+                                    throw new BladeEngineException($"Cannot execute {templateMainClass}.Render() since it requires more than one argument.");
+                                }
+                            }
+                            else
+                            {
+                                throw new BladeEngineException("Generated class does not have a method named Render().");
+                            }
                         }
                     }
                     else
                     {
-                        throw new BladeEngineException("Generated class does not have a method named Render().");
+                        throw new BladeEngineException($"Cannot access {templateMainClass} in generated assembly.");
                     }
-                }
-                else
-                {
-                    Logger.LogLn("Runner failed. Use debug switch for error details.");
                 }
             }
 
-            return result;
+            return true;
         }
     }
 }

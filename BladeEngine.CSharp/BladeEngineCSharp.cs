@@ -5,7 +5,7 @@ namespace BladeEngine.CSharp
 {
     public class BladeEngineCSharp : BladeEngineBase<BladeEngineConfigCSharp>
     {
-        public BladeEngineCSharp() : this(new BladeEngineConfigCSharp())
+        public BladeEngineCSharp(): this(new BladeEngineConfigCSharp())
         { }
         public BladeEngineCSharp(BladeEngineConfigCSharp config) : base(config)
         { }

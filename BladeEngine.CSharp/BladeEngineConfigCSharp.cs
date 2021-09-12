@@ -5,6 +5,7 @@ namespace BladeEngine.CSharp
 {
     public class BladeEngineConfigCSharp : BladeEngineConfigBase
     {
+        public override string FileExtension => ".cs";
         private string @namespace;
         public string Namespace
         {

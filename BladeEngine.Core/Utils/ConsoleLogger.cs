@@ -6,7 +6,7 @@ namespace BladeEngine.Core
 {
     public class ConsoleLogger: ILogger
     {
-        public void Log(string message, LogType logType)
+        public void Log(string message, LogType logType, bool addLogSeparator = true)
         {
             var color = Console.ForegroundColor;
 
@@ -35,6 +35,11 @@ namespace BladeEngine.Core
                 default:
                     Console.Write(message);
                     break;
+            }
+
+            if (addLogSeparator)
+            {
+                Console.Write(Environment.NewLine);
             }
 
             Console.ForegroundColor = color;
