@@ -1,7 +1,6 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
-using System.Text;
+using static BladeEngine.Core.Utils.LanguageConstructs;
 
 namespace BladeEngine.Core.Utils
 {
@@ -117,7 +116,7 @@ namespace BladeEngine.Core.Utils
         {
             var result = true;
 
-            if (!string.IsNullOrEmpty(value))
+            if (IsSomeString(value))
             {
                 for (var i = 0; i < value.Length; i++)
                 {

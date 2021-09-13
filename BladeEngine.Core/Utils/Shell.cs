@@ -1,7 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
+using static BladeEngine.Core.Utils.LanguageConstructs;
 
 namespace BladeEngine.Core.Utils
 {
@@ -10,7 +10,7 @@ namespace BladeEngine.Core.Utils
         public bool Succeeded { get; set; }
         public string Output { get; set; }
         public string Status { get; set; }
-        public int ExitCode { get; set; }
+        public int? ExitCode { get; set; }
         public Exception Exception { get; set; }
     }
     public class ShellExecuteRequest
@@ -45,12 +45,12 @@ namespace BladeEngine.Core.Utils
 
                 process.StartInfo.FileName = request.FileName;
 
-                if (!string.IsNullOrEmpty(request.Args))
+                if (IsSomeString(request.Args, true))
                 {
                     process.StartInfo.Arguments = request.Args;
                 }
 
-                if (!string.IsNullOrEmpty(request.WorkingDirectory))
+                if (IsSomeString(request.WorkingDirectory, true))
                 {
                     process.StartInfo.WorkingDirectory = request.WorkingDirectory;
                 }
@@ -89,31 +89,37 @@ namespace BladeEngine.Core.Utils
                     response.Status = "Failed";
                 }
 
-                response.ExitCode = process.ExitCode;
-
-                if (process.ExitCode == 0)
+                try
                 {
-                    response.Succeeded = true;
-                    response.Status = "Succeeded";
-                    response.Output = stdOutput.ToString();
+                    response.ExitCode = process.ExitCode;
                 }
-                else
+                catch { }
+
+                if (response.ExitCode.HasValue)
                 {
-                    var message = new StringBuilder();
-
-                    if (!string.IsNullOrEmpty(stdError))
+                    if (response.ExitCode == 0)
                     {
-                        message.AppendLine(stdError);
+                        response.Succeeded = true;
+                        response.Status = "Succeeded";
+                        response.Output = stdOutput.ToString();
                     }
-
-                    if (stdOutput.Length != 0)
+                    else
                     {
-                        message.AppendLine(stdOutput.ToString());
-                    }
+                        var message = new StringBuilder();
 
-                    response.Output = message.ToString();
+                        if (IsSomeString(stdError, true))
+                        {
+                            message.AppendLine(stdError);
+                        }
+
+                        if (IsSomeString(stdOutput.ToString(), true))
+                        {
+                            message.AppendLine(stdOutput.ToString());
+                        }
+
+                        response.Output = message.ToString();
+                    }
                 }
-
             } while (false);
 
             return response;

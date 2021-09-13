@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
-using System.Text;
 using Newtonsoft.Json;
+using static BladeEngine.Core.Utils.LanguageConstructs;
 
 namespace BladeEngine.Core
 {
@@ -52,7 +52,7 @@ namespace BladeEngine.Core
         {
             var result = true;
 
-            if (!string.IsNullOrEmpty(config))
+            if (IsSomeString(config, true))
             {
                 var cfg = Logger.Try("Deserializing engine configuration ...", Options.Debug, () => JsonConvert.DeserializeObject<TBladeEngineConfig>(config));
 
@@ -129,13 +129,20 @@ namespace BladeEngine.Core
         {
             var result = false;
 
-            if (Options.Runner && Options.ManualOutput)
+            if (Options.Runner && Options.OutputMode == OutputMode.Manual)
             {
                 result = true;
             }
             else
             {
-                result = Logger.Try($"Writing output '{Options.OutputFile}' ...", Options.Debug, () => File.WriteAllText(Options.OutputFile, RenderedTemplate));
+                if (Options.OutputMode != OutputMode.None)
+                {
+                    result = Logger.Try($"Writing output '{Options.OutputFile}' ...", Options.Debug, () => File.WriteAllText(Options.OutputFile, RenderedTemplate));
+                }
+                else
+                {
+                    result = true;
+                }
             }
             
             return result;
@@ -200,7 +207,7 @@ namespace BladeEngine.Core
                                     }
                                     else
                                     {
-                                        if (Options.ManualOutput)
+                                        if (Options.OutputMode == OutputMode.Manual)
                                         {
                                             Logger.Warn("Neither output specified nor asked to run the template. What's on your mind?");
                                         }

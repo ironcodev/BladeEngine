@@ -30,9 +30,9 @@ namespace BladeEngine.Core
 
                 foreach (var line in dependencies.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries))
                 {
-                    foreach (var @using in line.Split(separator, StringSplitOptions.RemoveEmptyEntries))
+                    foreach (var dependency in line.Split(separator, StringSplitOptions.RemoveEmptyEntries))
                     {
-                        var current = @using.Trim();
+                        var current = dependency.Trim();
 
                         if (current.Length > 0)
                         {

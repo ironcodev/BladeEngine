@@ -1,6 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
+using static BladeEngine.Core.Utils.LanguageConstructs;
 
 namespace BladeEngine.Core.Utils
 {
@@ -75,7 +74,7 @@ namespace BladeEngine.Core.Utils
         }
         public void Append(string s)
         {
-            if (!string.IsNullOrEmpty(s))
+            if (IsSomeString(s))
             {
                 if (_buffer.Length - _position < s.Length)
                 {

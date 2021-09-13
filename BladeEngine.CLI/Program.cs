@@ -3,8 +3,8 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using BladeEngine.Core;
-using BladeEngine.CSharp;
-using BladeEngine.Java;
+using BladeEngine.Core.Utils;
+using static BladeEngine.Core.Utils.LanguageConstructs;
 
 namespace BladeEngine.CLI
 {
@@ -14,16 +14,16 @@ namespace BladeEngine.CLI
         static void Help()
         {
             Console.WriteLine(@"
-blade [runner] [engine] [-i input-template] [-o output] [-on] [-r runner-output] [-rn] [-c engine config] [-m model] [-debug]
+blade [runner] [engine] [-i input-template] [-o output] [-on] [-r runner-output] [-rn] [-c engine-config] [-m model] [-debug]
     runner  :   execute template
-    engine  :   language engine to parse the template. supported languages are:
-                    c#, java, python, javascript
-    -i      :   input balde template to compile
-    -o      :   filename to save generated content into.
+    engine  :   blade engine to parse the template. internal engines are:
+                    csharp, java, javascript, python
+    -i      :   specify input balde template
+    -o      :   specify filename to save generated content into. if no filename is specified, use automatic filename
     -on     :   do not overwrite output if already exists
     -r      :   in case of using 'runner', a filename to save the result of executing generated code
     -rn     :   do not overwrite runner output if already exists
-    -c      :   engine config in json format
+    -c      :   engine config in json format or a filename that contains engine config in json format
     -m      :   model in json format or a filename containing model in json format
     -debug  :   execute runner in debug mode
 
@@ -47,7 +47,7 @@ example:
                     break;
                 }
 
-                result = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "\\BladeEngine." + arg + ".dll");
+                result = Path.Combine(AppPath.ExecDir, "\\BladeEngine." + arg + ".dll");
 
                 if (File.Exists(result))
                 {
@@ -61,7 +61,7 @@ example:
                     break;
                 }
 
-                result = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "\\" + arg + ".dll");
+                result = Path.Combine(AppPath.ExecDir, "\\" + arg + ".dll");
 
                 if (File.Exists(result))
                 {
@@ -81,7 +81,9 @@ example:
 
             do
             {
-                if (!string.IsNullOrEmpty(options.EngineLibraryPath))
+                // STEP 1. Validate Egnine and extract its runner
+
+                if (IsSomeString(options.EngineLibraryPath))
                 {
                     var assembly = logger.Try($"Loading Engine assembly '{options.EngineLibraryPath}' ...", options.Debug, () => Assembly.LoadFrom(options.EngineLibraryPath));
 
@@ -116,6 +118,8 @@ example:
                     break;
                 }
 
+                // STEP 2. Validate input template
+
                 if (string.IsNullOrEmpty(options.InputFile))
                 {
                     logger.Log("No input template is specified to be compiled.");
@@ -133,7 +137,9 @@ example:
                     break;
                 }
 
-                if (!string.IsNullOrEmpty(options.OutputFile))
+                // STEP 3. Validate Output
+
+                if (IsSomeString(options.OutputFile))
                 {
                     if (!Path.IsPathRooted(options.OutputFile))
                     {
@@ -151,12 +157,20 @@ example:
                     var filename = Path.GetFileNameWithoutExtension(options.InputFile);
 
                     options.OutputFile = Path.Combine(Path.GetDirectoryName(options.InputFile), filename + runner.Config.FileExtension);
-                    options.ManualOutput = true;
+
+                    if (options.OutputMode != OutputMode.Auto)
+                    {
+                        options.OutputMode = OutputMode.Manual;
+                    }
                 }
+
+                // STEP 4. Validate runner
 
                 if (options.Runner)
                 {
-                    if (!string.IsNullOrEmpty(options.RunnerOutputFile))
+                    // STEP 4.1. Validate runner output
+
+                    if (IsSomeString(options.RunnerOutputFile))
                     {
                         if (!Path.IsPathRooted(options.RunnerOutputFile))
                         {
@@ -176,7 +190,9 @@ example:
                         options.RunnerOutputFile = Path.Combine(Environment.CurrentDirectory, filename + ".output");
                     }
 
-                    if (!string.IsNullOrEmpty(options.GivenModel))
+                    // STEP 4.2. Validate runner model
+
+                    if (IsSomeString(options.GivenModel))
                     {
                         options.GivenModel = options.GivenModel.Trim();
 
@@ -198,6 +214,14 @@ example:
                                 logger.Abort($"Reading model file '{options.ModelPath}' failed", !options.Debug);
                                 break;
                             }
+                        }
+                    }
+                    else
+                    {
+                        if (options.UseModel)
+                        {
+                            logger.Log($"-m is used but no model is given");
+                            break;
                         }
                     }
                 }
@@ -254,9 +278,15 @@ example:
 
                 if (arg == "-o")
                 {
-                    if (i < args.Length - 1)
+                    if (i < args.Length - 1 && !args[i + 1].StartsWith("-") && string.Compare(args[i + 1], "runner", true) != 0 && string.IsNullOrEmpty(args[i + 1]))
                     {
                         result.OutputFile = args[i + 1];
+                        result.OutputMode = OutputMode.User;
+                        continue;
+                    }
+                    else
+                    {
+                        result.OutputMode = OutputMode.Auto;
                         continue;
                     }
                 }
@@ -281,6 +311,8 @@ example:
 
                 if (arg == "-m")
                 {
+                    result.UseModel = true;
+
                     if (i < args.Length - 1)
                     {
                         result.GivenModel = args[i + 1];
@@ -290,7 +322,7 @@ example:
 
                 result.EngineLibraryPath = GetAssemblyPath(arg);
 
-                if (!string.IsNullOrEmpty(result.EngineLibraryPath))
+                if (IsSomeString(result.EngineLibraryPath))
                 {
                     result.Engine = arg.ToLower();
                     continue;

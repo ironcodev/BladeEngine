@@ -14,6 +14,8 @@ using Microsoft.CodeAnalysis.Emit;
 using Newtonsoft.Json;
 using BladeEngine.Core;
 using BladeEngine.Core.Base.Exceptions;
+using static BladeEngine.Core.Utils.LanguageConstructs;
+using BladeEngine.Core.Utils;
 
 namespace BladeEngine.CSharp
 {
@@ -25,7 +27,7 @@ namespace BladeEngine.CSharp
         {
             object result = default;
 
-            if (!string.IsNullOrEmpty(model))
+            if (IsSomeString(model, true))
             {
                 try
                 {
@@ -58,7 +60,7 @@ namespace BladeEngine.CSharp
         {
             Assembly result = null;
             var md5 = Md5(RenderedTemplate);
-            var currentPath = AppDomain.CurrentDomain.BaseDirectory;
+            var currentPath = AppPath.ExecDir;
 
             if (!Directory.Exists(currentPath + "\\cache"))
             {
@@ -97,7 +99,7 @@ namespace BladeEngine.CSharp
 
                 if (StrongConfig.References != null && StrongConfig.References.Count > 0)
                 {
-                    foreach (var reference in StrongConfig.References.Where(r => !string.IsNullOrEmpty(r)))
+                    foreach (var reference in StrongConfig.References.Where(r => IsSomeString(r, true)))
                     {
                         var toAdd = "";
 

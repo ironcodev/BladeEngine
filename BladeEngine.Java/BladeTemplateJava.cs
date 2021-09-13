@@ -6,7 +6,8 @@ namespace BladeEngine.Java
     {
         public BladeTemplateJava(BladeEngineJava engine) : base(engine)
         {
-            Dependencies = @"import org.apache.commons.text.StringEscapeUtils;
+            Dependencies = $@"package {StrongEngine.StrongConfig.Package};
+import org.apache.commons.text.StringEscapeUtils;
 import java.net.URLEncoder;
 import java.util.Base64;
 import java.nio.charset.StandardCharsets;

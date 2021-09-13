@@ -1,5 +1,7 @@
-﻿using System;
+﻿using BladeEngine.Core.Utils;
+using System;
 using System.Text;
+using static BladeEngine.Core.Utils.LanguageConstructs;
 
 namespace BladeEngine.Core
 {
@@ -7,25 +9,30 @@ namespace BladeEngine.Core
     {
         public static bool DescendsFrom(this Type type, Type targetType)
         {
-            if (targetType == null) throw new ArgumentNullException("targetType");
+            var result = false;
 
-            var result = type.IsSubclassOf(targetType);
-
-            if (!result)
+            if (type != null)
             {
-                if (targetType.IsGenericTypeDefinition)
+                if (targetType == null) throw new ArgumentNullException("targetType");
+
+                result = type.IsSubclassOf(targetType);
+
+                if (!result)
                 {
-                    var _type = type;
-
-                    while (_type != typeof(object) && _type != null)
+                    if (targetType.IsGenericTypeDefinition)
                     {
-                        if (_type.IsGenericType && _type.GetGenericTypeDefinition() == targetType)
-                        {
-                            result = true;
-                            break;
-                        }
+                        var _type = type;
 
-                        _type = _type.BaseType;
+                        while (_type != typeof(object) && _type != null)
+                        {
+                            if (_type.IsGenericType && _type.GetGenericTypeDefinition() == targetType)
+                            {
+                                result = true;
+                                break;
+                            }
+
+                            _type = _type.BaseType;
+                        }
                     }
                 }
             }
@@ -45,6 +52,10 @@ namespace BladeEngine.Core
             }
 
             return result.ToString();
+        }
+        public static bool IsSucceeded(this ShellExecuteResponse sr)
+        {
+            return sr.Succeeded && sr.ExitCode.HasValue && sr.ExitCode.Value == 0 && !IsSomeString(sr.Output, true);
         }
         #region Logger Extensions
         public static void Log(this ILogger logger, Exception e, LogType logType = LogType.Danger)
@@ -123,6 +134,42 @@ namespace BladeEngine.Core
                 if (debug)
                 {
                     logger.Success("Succeeded");
+                }
+            }
+            catch (Exception e)
+            {
+                if (debug)
+                {
+                    logger.Danger("Failed");
+                    logger.Danger(e.ToString(Environment.NewLine));
+                }
+            }
+
+            return result;
+        }
+        public static bool Try(this ILogger logger, string message, bool debug, Func<bool> action, bool defaultValue = default)
+        {
+            var result = defaultValue;
+
+            if (debug)
+            {
+                logger.Debug(message);
+            }
+
+            try
+            {
+                result = action();
+
+                if (debug)
+                {
+                    if (result)
+                    {
+                        logger.Success("Succeeded");
+                    }
+                    else
+                    {
+                        logger.Warn("Failed");
+                    }
                 }
             }
             catch (Exception e)

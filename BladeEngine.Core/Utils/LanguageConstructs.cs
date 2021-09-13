@@ -1,11 +1,19 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
+using System.Linq;
 
 namespace BladeEngine.Core.Utils
 {
     public static class LanguageConstructs
     {
+        public static bool IsSomeString(string s, bool alsoRejectAllWhitespaceStrings = false)
+        {
+            if (!string.IsNullOrEmpty(s))
+            {
+                return !alsoRejectAllWhitespaceStrings || s.ToCharArray().Any(ch => !char.IsWhiteSpace(ch));
+            }
+
+            return false;
+        }
         public static T Try<T>(Func<T> action, T errorValue = default)
         {
             T result;
