@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using BladeEngine.Core.Utils.Logging;
 using Newtonsoft.Json;
 using static BladeEngine.Core.Utils.LanguageConstructs;
 
@@ -116,7 +117,7 @@ namespace BladeEngine.Core
             var renderedTemplate = "";
             var result = Logger.Try($"Rendering template ...", Options.Debug, () =>
             {
-                Template.Render();
+                renderedTemplate = Template.Render();
 
                 return true;
             });

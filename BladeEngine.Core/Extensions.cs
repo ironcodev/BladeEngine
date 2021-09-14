@@ -1,4 +1,5 @@
 ﻿using BladeEngine.Core.Utils;
+using BladeEngine.Core.Utils.Logging;
 using System;
 using System.Text;
 using static BladeEngine.Core.Utils.LanguageConstructs;

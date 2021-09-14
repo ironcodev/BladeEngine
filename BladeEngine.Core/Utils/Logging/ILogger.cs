@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace BladeEngine.Core
+namespace BladeEngine.Core.Utils.Logging
 {
     public enum LogType
     {
@@ -16,5 +16,6 @@ namespace BladeEngine.Core
     public interface ILogger
     {
         void Log(string message, LogType logType, bool addLogSeparator = true);
+        void Reset();
     }
 }

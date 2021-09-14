@@ -9,6 +9,7 @@ namespace BladeEngine.Core.Utils
     {
         public bool Succeeded { get; set; }
         public string Output { get; set; }
+        public string Errors { get; set; }
         public string Status { get; set; }
         public int? ExitCode { get; set; }
         public Exception Exception { get; set; }
@@ -105,19 +106,15 @@ namespace BladeEngine.Core.Utils
                     }
                     else
                     {
-                        var message = new StringBuilder();
-
                         if (IsSomeString(stdError, true))
                         {
-                            message.AppendLine(stdError);
+                            response.Errors = stdError;
                         }
 
                         if (IsSomeString(stdOutput.ToString(), true))
                         {
-                            message.AppendLine(stdOutput.ToString());
+                            response.Output = stdOutput.ToString();
                         }
-
-                        response.Output = message.ToString();
                     }
                 }
             } while (false);

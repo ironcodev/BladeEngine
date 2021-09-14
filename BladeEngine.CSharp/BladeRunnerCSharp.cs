@@ -16,6 +16,7 @@ using BladeEngine.Core;
 using BladeEngine.Core.Base.Exceptions;
 using static BladeEngine.Core.Utils.LanguageConstructs;
 using BladeEngine.Core.Utils;
+using BladeEngine.Core.Utils.Logging;
 
 namespace BladeEngine.CSharp
 {
@@ -67,7 +68,7 @@ namespace BladeEngine.CSharp
                 Logger.Try($"Creating cache directory at '" + currentPath + "\\cache'", Options.Debug, () => Directory.CreateDirectory(currentPath + "\\cache"));
             }
 
-            var existingCompiledAssembly = Path.Combine(currentPath + "\\cache", md5 + ".dll");
+            var existingCompiledAssembly = Path.Combine(currentPath + ".\\cache", md5 + ".dll");
             var createAssembly = true;
 
             if (File.Exists(existingCompiledAssembly))

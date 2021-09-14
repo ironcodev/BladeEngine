@@ -3,6 +3,7 @@ using System.IO;
 using System.Reflection;
 using BladeEngine.Core;
 using BladeEngine.Core.Utils;
+using BladeEngine.Core.Utils.Logging;
 using static BladeEngine.Core.Utils.LanguageConstructs;
 
 namespace BladeEngine.Java
@@ -64,7 +65,7 @@ namespace BladeEngine.Java
 
                 // STEP 1.1. Check whether java.exe is executed without any error
 
-                if (!ShellExecute(message: "Executing java.exe ...",
+                if (!ShellExecute(message: "Executing ...",
                             errorMessage: "Cannot run java. Please make sure JDK is installed and its path is included in PATH environment variable.",
                             filename: "java.exe",
                             output: out shellOutput))

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using BladeEngine.Core;
 using BladeEngine.Core.Utils;
+using BladeEngine.Core.Utils.Logging;
 using static BladeEngine.Core.Utils.LanguageConstructs;
 
 namespace BladeEngine.CLI
@@ -40,28 +41,28 @@ example:
 
             do
             {
-                result = Path.Combine(Environment.CurrentDirectory, "\\BladeEngine." + arg + ".dll");
+                result = Path.Combine(Environment.CurrentDirectory, ".\\BladeEngine." + arg + ".dll");
 
                 if (File.Exists(result))
                 {
                     break;
                 }
 
-                result = Path.Combine(AppPath.ExecDir, "\\BladeEngine." + arg + ".dll");
+                result = Path.Combine(AppPath.ExecDir, ".\\BladeEngine." + arg + ".dll");
 
                 if (File.Exists(result))
                 {
                     break;
                 }
 
-                result = Path.Combine(Environment.CurrentDirectory, "\\" + arg + ".dll");
+                result = Path.Combine(Environment.CurrentDirectory, ".\\" + arg + ".dll");
 
                 if (File.Exists(result))
                 {
                     break;
                 }
 
-                result = Path.Combine(AppPath.ExecDir, "\\" + arg + ".dll");
+                result = Path.Combine(AppPath.ExecDir, ".\\" + arg + ".dll");
 
                 if (File.Exists(result))
                 {
@@ -320,10 +321,11 @@ example:
                     }
                 }
 
-                result.EngineLibraryPath = GetAssemblyPath(arg);
+                var path = GetAssemblyPath(arg);
 
-                if (IsSomeString(result.EngineLibraryPath))
+                if (IsSomeString(path))
                 {
+                    result.EngineLibraryPath = path;
                     result.Engine = arg.ToLower();
                     continue;
                 }

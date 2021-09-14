@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace BladeEngine.Core
+namespace BladeEngine.Core.Utils.Logging
 {
     public class ConsoleLogger: ILogger
     {
@@ -43,6 +43,10 @@ namespace BladeEngine.Core
             }
 
             Console.ForegroundColor = color;
+        }
+        public void Reset()
+        {
+            Console.Clear();
         }
     }
 }
