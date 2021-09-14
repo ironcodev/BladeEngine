@@ -12,20 +12,23 @@ namespace BladeEngine.Java
     {
         public BladeRunnerJava(ILogger logger, BladeEngineOptions options) : base(logger, options)
         { }
-        bool ShellExecute(string message, string errorMessage, string filename, out string output, string args = null, string workingDirectory = null, bool strictSuccess = false)
+        bool ShellExecute(string message, string errorMessage, string filename, Func<ShellExecuteResponse, bool> onExecute, string args = null, string workingDirectory = null)
         {
-            var _outout = "";
-            var result = Logger.Try(message + Environment.NewLine + $"{filename} {args}", Options.Debug, () =>
+            var result = Logger.Try(message + Environment.NewLine + $"command: {filename} {args}", Options.Debug, () =>
             {
                 var sr = Shell.Execute(new ShellExecuteRequest { FileName = filename, Args = args, WorkingDirectory = workingDirectory });
                 
-                _outout = sr.Output;
-
                 if (Options.Debug)
                 {
                     Logger.Log($"Exit Code: {sr.ExitCode}");
                     Logger.Log("Output:");
                     Logger.Debug(sr.Output);
+
+                    if (IsSomeString(sr.Errors))
+                    {
+                        Logger.Log("Errors:");
+                        Logger.Debug(sr.Errors);
+                    }
 
                     if (sr.Exception != null)
                     {
@@ -33,7 +36,7 @@ namespace BladeEngine.Java
                     }
                 }
 
-                return (strictSuccess && sr.IsSucceeded()) || (!strictSuccess && sr.Succeeded && sr.ExitCode.HasValue);
+                return onExecute(sr);
             });
 
             if (!result)
@@ -41,53 +44,52 @@ namespace BladeEngine.Java
                 Abort(errorMessage);
             }
 
-            output = _outout;
-
             return result;
         }
         protected override bool Execute(out string result)
         {
             var ok = false;
-            var currentPath = Assembly.GetExecutingAssembly().Location;
+            var currentPath = AppPath.ExecDir;
 
             result = "";
 
             do
             {
-                // STEP 1. Check whether JDK is installed
-
-                var shellOutput = "";
-
-                if (Options.Debug)
+                if (Engine.StrongConfig.RunnerConfig.CheckJdkExistence)
                 {
-                    Logger.Log("Checking if JDK exists ...");
-                }
+                    // STEP 1. Check whether JDK is installed
 
-                // STEP 1.1. Check whether java.exe is executed without any error
+                    if (Options.Debug)
+                    {
+                        Logger.Log(Environment.NewLine + "STEP 1. Checking if JDK exists ...");
+                    }
 
-                if (!ShellExecute(message: "Executing ...",
-                            errorMessage: "Cannot run java. Please make sure JDK is installed and its path is included in PATH environment variable.",
-                            filename: "java.exe",
-                            output: out shellOutput))
-                {
-                    break;
-                }
+                    // STEP 1.1. Check whether java.exe is executed without any error
 
-                // STEP 1.2. Check whether javac.exe is executed without any error
+                    if (!ShellExecute(message: "STEP 1.1. Executing ...",
+                                      errorMessage: "Cannot run java. Please make sure JDK is installed and its path is included in PATH environment variable.",
+                                      filename: "java.exe",
+                                      onExecute: sr => sr.Succeeded))
+                    {
+                        break;
+                    }
 
-                if (!ShellExecute(message: "Executing javac.exe ...",
-                            errorMessage: "Cannot run javac. Please make sure JDK is installed and its path is included in PATH environment variable.",
-                            "javac.exe",
-                            output: out shellOutput))
-                {
-                    break;
+                    // STEP 1.2. Check whether javac.exe is executed without any error
+
+                    if (!ShellExecute(message: "STEP 1.2. Executing javac.exe ...",
+                                      errorMessage: "Cannot run javac. Please make sure JDK is installed and its path is included in PATH environment variable.",
+                                      filename: "javac.exe",
+                                      onExecute: sr => sr.Succeeded))
+                    {
+                        break;
+                    }
                 }
 
                 // STEP 2. Create /temp dir in Blade folder if not existed
 
                 if (!Directory.Exists(currentPath + "\\temp"))
                 {
-                    if (!Logger.Try($"Creating main temp directory at '" + currentPath + "'", Options.Debug, () =>
+                    if (!Logger.Try($"STEP 2. Creating main temp directory at '" + currentPath + "'", Options.Debug, () =>
                     {
                         Directory.CreateDirectory(currentPath + "\\temp");
 
@@ -105,7 +107,7 @@ namespace BladeEngine.Java
 
                 if (!Directory.Exists(tmpDir))
                 {
-                    if (!Logger.Try($"Creating temporarily directory for template execution at '" + tmpDir + "'", Options.Debug, () =>
+                    if (!Logger.Try($"STEP 3. Creating temporarily directory for template execution at '" + tmpDir + "'", Options.Debug, () =>
                     {
                         Directory.CreateDirectory(tmpDir);
 
@@ -117,27 +119,45 @@ namespace BladeEngine.Java
                     }
                 }
 
+                // STEP 4. Create package dir
+
+                var tmpPackage = tmpDir + "\\" + Engine.StrongConfig.Package;
+
+                if (!Directory.Exists(tmpPackage))
+                {
+                    if (!Logger.Try($"STEP 4. Creating package dir {tmpPackage} ...", Options.Debug, () =>
+                    {
+                        Directory.CreateDirectory(tmpPackage);
+
+                        return true;
+                    }))
+                    {
+                        Abort($"Creating package dir {tmpPackage} failed. Executing template aborted");
+                        break;
+                    }
+                }
+
                 var classPath = $".;{currentPath}\\java;{Engine.StrongConfig.ClassPath}";
 
-                // STEP 4. Saving rendered template at tmpDir
+                // STEP 5. Saving rendered template at tmpDir
 
-                var tmpFile = tmpDir + "\\" + Template.GetMainClassName() + ".java";
+                var tmpFile = tmpPackage + "\\" + Template.GetMainClassName() + ".java";
 
-                if (!Logger.Try($"Saving rendered template at '{tmpFile}' ...", Options.Debug, () =>
+                if (!Logger.Try($"STEP 5. Saving rendered template '{tmpFile}' ...", Options.Debug, () =>
                 {
                     File.WriteAllText(tmpFile, RenderedTemplate);
 
                     return true;
                 }))
                 {
-                    Abort($"Saving rendered template at {tmpDir} failed. Executing template aborted");
+                    Abort($"Saving rendered template '{tmpFile}' failed. Executing template aborted");
                     break;
                 }
 
-                // STEP 5. Create and save a runner program to run rendered template at tmpDir
+                // STEP 6. Create and save a runner program to run rendered template at tmpDir
 
                 var program = $@"
-import {Template.GetMainClassName()};
+import {Engine.StrongConfig.Package}.{Template.GetMainClassName()};
 
 public class Program {{
     public static void main(String[] args) {{
@@ -149,7 +169,7 @@ public class Program {{
 ";
                 var tmpProgram = $"{tmpDir}\\Program.java";
 
-                if (!Logger.Try($"Saving runner Program at '{tmpProgram}' ...", Options.Debug, () => {
+                if (!Logger.Try($"STEP 6. Saving runner Program at '{tmpProgram}' ...", Options.Debug, () => {
                     File.WriteAllText(tmpProgram, program);
 
                     return true;
@@ -159,41 +179,44 @@ public class Program {{
                     break;
                 }
 
-                // STEP 6. Compile rendered template
+                // STEP 7. Compile rendered template
 
-                if (!ShellExecute(message: $"Compiling template {Path.GetFileName(tmpFile)} ...",
+                if (!ShellExecute(message: $"STEP 7. Compiling template {Path.GetFileName(tmpFile)} ...",
                                 errorMessage: "Compiling template failed",
                                 filename: "javac.exe",
-                                output: out shellOutput,
-                                args: $"-cp {classPath} {Path.GetFileName(tmpFile)}",
-                                workingDirectory: tmpDir,
-                                strictSuccess: true))
+                                onExecute: sr => sr.IsSucceeded(@"^\s*$", true, true),
+                                args: $"-cp \"{classPath}\" {Path.GetFileName(tmpFile)}",
+                                workingDirectory: tmpPackage))
                 {
                     break;
                 }
 
                 // STEP 8. Compile runner
 
-                if (!ShellExecute(message: $"Compiling template runner {Path.GetFileName(tmpProgram)} ...",
+                if (!ShellExecute(message: $"STEP 8. Compiling template runner {Path.GetFileName(tmpProgram)} ...",
                                 errorMessage: "Compiling template runner failed",
                                 filename: "javac.exe",
-                                output: out shellOutput,
-                                args: $"-cp {classPath} {Path.GetFileName(tmpProgram)}",
-                                workingDirectory: tmpDir,
-                                strictSuccess: true))
+                                onExecute: sr => sr.IsSucceeded(@"^\s*$", true, true),
+                                args: $"-cp \"{classPath}\" {Path.GetFileName(tmpProgram)}",
+                                workingDirectory: tmpDir))
                 {
                     break;
                 }
 
                 // STEP 9. Execute runner
+                var shellOutput = "";
 
-                if (!ShellExecute(message: $"Executing template runner ...",
+                if (!ShellExecute(message: $"STEP 9. Executing template runner ...",
                                 errorMessage: "Executing template runner failed",
                                 filename: "java.exe",
-                                output: out shellOutput,
-                                args: $"-cp {classPath} {Path.GetFileNameWithoutExtension(tmpProgram)}",
-                                workingDirectory: tmpDir,
-                                strictSuccess: true))
+                                onExecute: sr =>
+                                {
+                                    shellOutput = sr.Output;
+
+                                    return sr.Succeeded;
+                                },
+                                args: $"-cp \"{classPath}\" {Path.GetFileNameWithoutExtension(tmpProgram)}",
+                                workingDirectory: tmpDir))
                 {
                     break;
                 }

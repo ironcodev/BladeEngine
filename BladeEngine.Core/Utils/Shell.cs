@@ -93,28 +93,28 @@ namespace BladeEngine.Core.Utils
                 try
                 {
                     response.ExitCode = process.ExitCode;
+                    response.Succeeded = true;
+                    response.Status = "Succeeded";
                 }
                 catch { }
 
                 if (response.ExitCode.HasValue)
                 {
-                    if (response.ExitCode == 0)
+                    if (IsSomeString(stdError, true))
                     {
-                        response.Succeeded = true;
-                        response.Status = "Succeeded";
+                        response.Errors = stdError;
+                    }
+
+                    if (IsSomeString(stdOutput.ToString(), true))
+                    {
                         response.Output = stdOutput.ToString();
                     }
-                    else
+                }
+                else
+                {
+                    if (string.IsNullOrEmpty(response.Status))
                     {
-                        if (IsSomeString(stdError, true))
-                        {
-                            response.Errors = stdError;
-                        }
-
-                        if (IsSomeString(stdOutput.ToString(), true))
-                        {
-                            response.Output = stdOutput.ToString();
-                        }
+                        response.Status = "Errored";
                     }
                 }
             } while (false);

@@ -20,6 +20,7 @@
         public bool DontOverwriteExistingRunnerOutputFile { get; set; }
         public bool Runner { get; set; }
         public string GivenConfig { get; set; }
+        public bool UseConfig { get; set; }
         public bool UseModel { get; set; }
         public string GivenModel { get; set; }
         public string ModelPath { get; set; }

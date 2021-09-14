@@ -65,7 +65,7 @@ namespace BladeEngine.Core
             {
                 if (Options.Debug)
                 {
-                    Logger.Log("No config is given. Used default config.");
+                    Logger.Log(Environment.NewLine + "No config is given. Used default config.");
                 }
             }
 
@@ -73,8 +73,8 @@ namespace BladeEngine.Core
             
             if (Options.Debug)
             {
-                Logger.Log("Config is");
-                Logger.Debug(Environment.NewLine + JsonConvert.SerializeObject(StrongConfig, Formatting.Indented) + Environment.NewLine);
+                Logger.Log(Environment.NewLine + "Config is:");
+                Logger.Debug(Environment.NewLine + JsonConvert.SerializeObject(StrongConfig, Formatting.Indented));
             }
 
             return result;
@@ -148,32 +148,35 @@ namespace BladeEngine.Core
             
             return result;
         }
-        void WriteRunnerOutput(string runnerOutput)
+        bool WriteRunnerOutput(string runnerOutput)
         {
+            var result = false;
+
             if (Options.Debug)
             {
                 Logger.Debug("Runner output is");
-                Logger.Debug($"Length: {(runnerOutput?.Length ?? 0)}");
-                Logger.Debug(runnerOutput);
+                Logger.Log($"Length: {(runnerOutput?.Length ?? 0)}");
+                Logger.Log(runnerOutput);
             }
 
-            if (!Logger.Try($"Writing runner output into '{Options.RunnerOutputFile}' ...", Options.Debug, () => {
+            result = Logger.Try($"Writing runner output into '{Options.RunnerOutputFile}' ...", Options.Debug, () =>
+            {
                 File.WriteAllText(Options.RunnerOutputFile, runnerOutput);
+
                 return true;
-            }))
+            });
+
+            if (!result)
             {
                 Abort($"Writing runner output into '{Options.RunnerOutputFile}' failed");
             }
+
+            return result;
         }
         protected abstract bool Execute(out string result);
         public override void Run()
         {
             string content;
-
-            if (Options.Debug)
-            {
-                Logger.Log($"Requested engine is '{Options.Engine}'");
-            }
 
             if (GetInput(Options.InputFile, out content))
             {
@@ -199,11 +202,22 @@ namespace BladeEngine.Core
 
                                         if (Logger.Try("Running generated code ...", Options.Debug, () => Execute(out runnerOutput)))
                                         {
-                                            WriteRunnerOutput(runnerOutput);
+                                            if (!Options.Debug)
+                                            {
+                                                Logger.Log($"Runner succeeded.");
+                                            }
+
+                                            if (WriteRunnerOutput(runnerOutput))
+                                            {
+                                                Logger.Log($"Runner output saved.");
+                                            }
                                         }
                                         else
                                         {
-                                            Logger.Warn($"'{Options.Engine}' runner failed");
+                                            if (!Options.Debug)
+                                            {
+                                                Logger.Warn($"Runner did not succeed. Use -debug for details.");
+                                            }
                                         }
                                     }
                                     else

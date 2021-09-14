@@ -33,11 +33,11 @@ namespace BladeEngine.Core.Utils.Logging
         }
         public void Log(string message, LogType logType, bool addLogSeparator = true)
         {
-            Try(() => { File.AppendAllText(FileName, $"{DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss.ffff")}: {message}"); return true; });
+            Try(() => { File.AppendAllText(FileName, $"{DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss.ffff")}: {message}{Environment.NewLine}"); return true; });
 
             if (addLogSeparator)
             {
-                Try(() => { File.AppendAllText(FileName, Separator); return true; });
+                Try(() => { File.AppendAllText(FileName, Separator + Environment.NewLine); return true; });
             }
         }
         public void Reset()

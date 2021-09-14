@@ -5,19 +5,26 @@ using System.Reflection;
 using BladeEngine.Core;
 using BladeEngine.Core.Utils;
 using BladeEngine.Core.Utils.Logging;
+using Newtonsoft.Json;
 using static BladeEngine.Core.Utils.LanguageConstructs;
 
 namespace BladeEngine.CLI
 {
     class Program
     {
+        static string Version => "1.0.0";
         static ILogger logger => new ConsoleLogger();
         static void Help()
         {
-            Console.WriteLine(@"
-blade [runner] [engine] [-i input-template] [-o output] [-on] [-r runner-output] [-rn] [-c engine-config] [-m model] [-debug]
-    runner  :   execute template
-    engine  :   blade engine to parse the template. internal engines are:
+            Console.WriteLine($@"
+Blade Template Engine v{Version}
+
+blade [runner] [-e engine] [-c engine-config] [-i input-template] [-o output] [-on]
+      [-r runner-output] [-rn] [-m model] [-debug] [-v] [-?]
+
+options:
+    runner  :   run template
+    -e      :   specify blade engine to parse the template. internal engines are:
                     csharp, java, javascript, python
     -i      :   specify input balde template
     -o      :   specify filename to save generated content into. if no filename is specified, use automatic filename
@@ -27,12 +34,14 @@ blade [runner] [engine] [-i input-template] [-o output] [-on] [-r runner-output]
     -c      :   engine config in json format or a filename that contains engine config in json format
     -m      :   model in json format or a filename containing model in json format
     -debug  :   execute runner in debug mode
+    -v      :   program version
+    -?      :   show this help
 
 example:
-    blade c# -i my-template.blade
-    blade c# -i my-template.blade -o my-template.cs
-    blade c# -i my-template.blade -c ""{ 'NameSpace': 'MyNS' }""
-    blade runner c# -i my-template.blade -m ""{ 'name': 'John Doe' }""
+    blade -e csharp -i my-template.blade
+    blade -e csharp -i my-template.blade -o my-template.cs
+    blade -e csharp -i my-template.blade -c ""{{ 'NameSpace': 'MyNS' }}""
+    blade runner -e csharp -i my-template.blade -m ""{{ 'name': 'John Doe' }}""
 ");
         }
         static string GetAssemblyPath(string arg)
@@ -136,6 +145,41 @@ example:
                 {
                     logger.Log($"input file '{options.InputFile}' does not exist.");
                     break;
+                }
+
+                // STEP 3. Validate Config
+
+                if (IsSomeString(options.GivenConfig))
+                {
+                    options.GivenConfig = options.GivenConfig.Trim();
+
+                    if (!(options.GivenConfig.StartsWith("{") && options.GivenConfig.EndsWith("}")))  // if config is not json, assume it as a file
+                    {
+                        var configPath = Path.IsPathRooted(options.GivenConfig) ? options.GivenConfig : Path.Combine(Environment.CurrentDirectory, options.GivenConfig);
+
+                        if (!File.Exists(configPath))
+                        {
+                            logger.Log($"config file '{options.GivenConfig}' not found.");
+                            break;
+                        }
+
+                        if (!logger.Try($"Reading config file {configPath}", options.Debug, () =>
+                        {
+                            options.GivenConfig = File.ReadAllText(configPath);
+                        }))
+                        {
+                            logger.Abort($"Reading config file '{configPath}' failed", !options.Debug);
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    if (options.UseConfig)
+                    {
+                        logger.Log($"-c is used but no config is given");
+                        break;
+                    }
                 }
 
                 // STEP 3. Validate Output
@@ -244,6 +288,18 @@ example:
             {
                 var arg = args[i];
 
+                if (arg == "-v")
+                {
+                    logger.Log($"{Environment.NewLine}Blade Template Engine {Version}{Environment.NewLine}");
+                    return null;
+                }
+
+                if (arg == "-?" || arg == "/?")
+                {
+                    Help();
+                    return null;
+                }
+
                 if (arg == "runner")
                 {
                     result.Runner = true;
@@ -273,23 +329,24 @@ example:
                     if (i < args.Length - 1)
                     {
                         result.InputFile = args[i + 1];
-                        continue;
                     }
+
+                    continue;
                 }
 
                 if (arg == "-o")
                 {
-                    if (i < args.Length - 1 && !args[i + 1].StartsWith("-") && string.Compare(args[i + 1], "runner", true) != 0 && string.IsNullOrEmpty(args[i + 1]))
+                    if (i < args.Length - 1 && !args[i + 1].StartsWith("-") && string.Compare(args[i + 1], "runner", true) != 0 && string.Compare(args[i + 1], "/?", true) != 0 && !IsSomeString(args[i + 1], true))
                     {
                         result.OutputFile = args[i + 1];
                         result.OutputMode = OutputMode.User;
-                        continue;
                     }
                     else
                     {
                         result.OutputMode = OutputMode.Auto;
-                        continue;
                     }
+
+                    continue;
                 }
 
                 if (arg == "-r")
@@ -297,17 +354,21 @@ example:
                     if (i < args.Length - 1)
                     {
                         result.RunnerOutputFile = args[i + 1];
-                        continue;
                     }
+
+                    continue;
                 }
 
                 if (arg == "-c")
                 {
+                    result.UseConfig = true;
+
                     if (i < args.Length - 1)
                     {
                         result.GivenConfig = args[i + 1];
-                        continue;
                     }
+
+                    continue;
                 }
 
                 if (arg == "-m")
@@ -317,18 +378,27 @@ example:
                     if (i < args.Length - 1)
                     {
                         result.GivenModel = args[i + 1];
-                        continue;
                     }
-                }
 
-                var path = GetAssemblyPath(arg);
-
-                if (IsSomeString(path))
-                {
-                    result.EngineLibraryPath = path;
-                    result.Engine = arg.ToLower();
                     continue;
                 }
+
+                if (arg == "-e")
+                {
+                    if (i < args.Length - 1)
+                    {
+                        var path = GetAssemblyPath(args[i + 1]);
+
+                        if (IsSomeString(path))
+                        {
+                            result.EngineLibraryPath = path;
+                            result.Engine = args[i + 1].ToLower();
+                        }
+                    }
+
+                    continue;
+                }
+                
             }
 
             return result;
@@ -345,26 +415,21 @@ example:
 
                 BladeRunner runner;
 
-                if (Validate(options, out runner))
+                if (options != null && Validate(options, out runner))
                 {
+                    if (options.Debug)
+                    {
+                        logger.Log(Environment.NewLine + "Given options:");
+                        logger.Debug(Environment.NewLine + JsonConvert.SerializeObject(options, Formatting.Indented) + Environment.NewLine);
+                    }
+
                     runner.Run();
-                }
-            }
-        }
-        static void Test(string[] args)
-        {
-            if (args != null && args.Length > 0)
-            {
-                foreach (var item in args)
-                {
-                    Console.WriteLine(item);
                 }
             }
         }
         static void Main(string[] args)
         {
             Start(args);
-            //Test(args);
         }
     }
 }

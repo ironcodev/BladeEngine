@@ -2,6 +2,7 @@
 using BladeEngine.Core.Utils.Logging;
 using System;
 using System.Text;
+using System.Text.RegularExpressions;
 using static BladeEngine.Core.Utils.LanguageConstructs;
 
 namespace BladeEngine.Core
@@ -54,9 +55,23 @@ namespace BladeEngine.Core
 
             return result.ToString();
         }
-        public static bool IsSucceeded(this ShellExecuteResponse sr)
+        public static bool IsSucceeded(this ShellExecuteResponse sr, string expectedOutput = null, bool ignoreCase = true, bool regexExpectedOutput = false)
         {
-            return sr.Succeeded && sr.ExitCode.HasValue && sr.ExitCode.Value == 0 && !IsSomeString(sr.Output, true);
+            var result = sr.Succeeded && string.IsNullOrEmpty(sr.Errors);
+
+            if (result && expectedOutput != null)
+            {
+                if (regexExpectedOutput)
+                {
+                    result = Regex.IsMatch(sr.Output ?? "", expectedOutput);
+                }
+                else
+                {
+                    result = string.Compare(sr.Output ?? "", expectedOutput, ignoreCase) == 0;
+                }
+            }
+
+            return result;
         }
         #region Logger Extensions
         public static void Log(this ILogger logger, Exception e, LogType logType = LogType.Danger)
@@ -94,7 +109,7 @@ namespace BladeEngine.Core
 
             if (debug)
             {
-                logger.Debug(message);
+                logger.Log(Environment.NewLine + message);
             }
 
             try
@@ -125,7 +140,7 @@ namespace BladeEngine.Core
 
             if (debug)
             {
-                logger.Debug(message);
+                logger.Log(Environment.NewLine + message);
             }
 
             try
@@ -154,7 +169,7 @@ namespace BladeEngine.Core
 
             if (debug)
             {
-                logger.Debug(message);
+                logger.Log(Environment.NewLine + message);
             }
 
             try
