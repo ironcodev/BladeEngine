@@ -200,7 +200,7 @@ namespace BladeEngine.Core
                                     {
                                         var runnerOutput = "";
 
-                                        if (Logger.Try("Running generated code ...", Options.Debug, () => Execute(out runnerOutput)))
+                                        if (Logger.Try("Running generated code ...", () => Execute(out runnerOutput)))
                                         {
                                             if (!Options.Debug)
                                             {
@@ -210,6 +210,11 @@ namespace BladeEngine.Core
                                             if (WriteRunnerOutput(runnerOutput))
                                             {
                                                 Logger.Log($"Runner output saved.");
+                                            }
+
+                                            if (Options.PrintRunnerOutput)
+                                            {
+                                                Logger.Log(runnerOutput);
                                             }
                                         }
                                         else

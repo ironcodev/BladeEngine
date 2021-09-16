@@ -20,7 +20,7 @@ namespace BladeEngine.CLI
 Blade Template Engine v{Version}
 
 blade [runner] [-e engine] [-c engine-config] [-i input-template] [-o output] [-on]
-      [-r runner-output] [-rn] [-m model] [-debug] [-v] [-?]
+      [-r runner-output] [-rn] [pr] [-m model] [-debug] [-v] [-?]
 
 options:
     runner  :   run template
@@ -31,6 +31,7 @@ options:
     -on     :   do not overwrite output if already exists
     -r      :   in case of using 'runner', a filename to save the result of executing generated code
     -rn     :   do not overwrite runner output if already exists
+    -pr     :   print runner output
     -c      :   engine config in json format or a filename that contains engine config in json format
     -m      :   model in json format or a filename containing model in json format
     -debug  :   execute runner in debug mode
@@ -321,6 +322,12 @@ example:
                 if (arg == "-rn")
                 {
                     result.DontOverwriteExistingRunnerOutputFile = true;
+                    continue;
+                }
+
+                if (arg == "-pr")
+                {
+                    result.PrintRunnerOutput = true;
                     continue;
                 }
 

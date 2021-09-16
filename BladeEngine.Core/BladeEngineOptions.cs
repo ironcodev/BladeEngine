@@ -19,6 +19,7 @@
         public string RunnerOutputFile { get; set; }
         public bool DontOverwriteExistingRunnerOutputFile { get; set; }
         public bool Runner { get; set; }
+        public bool PrintRunnerOutput { get; set; }
         public string GivenConfig { get; set; }
         public bool UseConfig { get; set; }
         public bool UseModel { get; set; }

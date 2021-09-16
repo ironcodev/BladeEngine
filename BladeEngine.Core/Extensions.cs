@@ -199,6 +199,33 @@ namespace BladeEngine.Core
 
             return result;
         }
+        public static bool Try(this ILogger logger, string message, Func<bool> action, bool defaultValue = default)
+        {
+            var result = defaultValue;
+
+            logger.Log(Environment.NewLine + message);
+
+            try
+            {
+                result = action();
+
+                if (result)
+                {
+                    logger.Success("Succeeded");
+                }
+                else
+                {
+                    logger.Warn("Failed");
+                }
+            }
+            catch (Exception e)
+            {
+                logger.Danger("Failed");
+                logger.Danger(e.ToString(Environment.NewLine));
+            }
+
+            return result;
+        }
         public static void Abort(this ILogger logger, string message, bool show)
         {
             if (show)

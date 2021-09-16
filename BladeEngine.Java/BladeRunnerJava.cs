@@ -2,6 +2,7 @@
 using System.IO;
 using System.Reflection;
 using BladeEngine.Core;
+using BladeEngine.Core.Base.Exceptions;
 using BladeEngine.Core.Utils;
 using BladeEngine.Core.Utils.Logging;
 using static BladeEngine.Core.Utils.LanguageConstructs;
@@ -12,7 +13,7 @@ namespace BladeEngine.Java
     {
         public BladeRunnerJava(ILogger logger, BladeEngineOptions options) : base(logger, options)
         { }
-        bool ShellExecute(string message, string errorMessage, string filename, Func<ShellExecuteResponse, bool> onExecute, string args = null, string workingDirectory = null)
+        bool ShellExecute(string message, string errorMessage, string filename, Func<ShellExecuteResponse, bool> onExecute, string args = null, string workingDirectory = null, bool throwErrors = false)
         {
             var result = Logger.Try(message + Environment.NewLine + $"command: {filename} {args}", Options.Debug, () =>
             {
@@ -26,13 +27,27 @@ namespace BladeEngine.Java
 
                     if (IsSomeString(sr.Errors))
                     {
-                        Logger.Log("Errors:");
-                        Logger.Debug(sr.Errors);
+                        if (throwErrors)
+                        {
+                            throw new BladeEngineException($"executing '{filename} {args}' failed", sr.Exception);
+                        }
+                        else
+                        {
+                            Logger.Log("Errors:");
+                            Logger.Debug(sr.Errors);
+                        }
                     }
 
                     if (sr.Exception != null)
                     {
-                        Logger.Danger(Environment.NewLine + sr.Exception.ToString(Environment.NewLine) + Environment.NewLine);
+                        if (throwErrors)
+                        {
+                            throw new BladeEngineException($"executing '{filename} {args}' faulted", sr.Exception);
+                        }
+                        else
+                        {
+                            Logger.Danger(Environment.NewLine + sr.Exception.ToString(Environment.NewLine) + Environment.NewLine);
+                        }
                     }
                 }
 
@@ -186,7 +201,8 @@ public class Program {{
                                 filename: "javac.exe",
                                 onExecute: sr => sr.IsSucceeded(@"^\s*$", true, true),
                                 args: $"-cp \"{classPath}\" {Path.GetFileName(tmpFile)}",
-                                workingDirectory: tmpPackage))
+                                workingDirectory: tmpPackage,
+                                throwErrors: true))
                 {
                     break;
                 }
@@ -198,7 +214,8 @@ public class Program {{
                                 filename: "javac.exe",
                                 onExecute: sr => sr.IsSucceeded(@"^\s*$", true, true),
                                 args: $"-cp \"{classPath}\" {Path.GetFileName(tmpProgram)}",
-                                workingDirectory: tmpDir))
+                                workingDirectory: tmpDir,
+                                throwErrors: true))
                 {
                     break;
                 }
@@ -216,7 +233,8 @@ public class Program {{
                                     return sr.Succeeded;
                                 },
                                 args: $"-cp \"{classPath}\" {Path.GetFileNameWithoutExtension(tmpProgram)}",
-                                workingDirectory: tmpDir))
+                                workingDirectory: tmpDir,
+                                throwErrors: true))
                 {
                     break;
                 }
