@@ -139,41 +139,98 @@ namespace BladeEngine.Core
                 if (Options.OutputMode != OutputMode.None)
                 {
                     result = Logger.Try($"Writing output '{Options.OutputFile}' ...", Options.Debug, () => File.WriteAllText(Options.OutputFile, RenderedTemplate));
+
+                    if (!Options.Debug && Options.OutputMode != OutputMode.Manual && !Options.PrintRunnerOutput)
+                    {
+                        Logger.Log($"Output '{Options.OutputFile}' created.");
+                    }
                 }
                 else
                 {
                     result = true;
                 }
             }
-            
+
             return result;
         }
         bool WriteRunnerOutput(string runnerOutput)
         {
             var result = false;
 
-            if (Options.Debug)
+            if (Options.OutputMode != OutputMode.None)
             {
-                Logger.Debug("Runner output is");
-                Logger.Log($"Length: {(runnerOutput?.Length ?? 0)}");
-                Logger.Log(runnerOutput);
+                if (Options.Debug)
+                {
+                    Logger.Debug("Runner output is");
+                    Logger.Log($"Length: {(runnerOutput?.Length ?? 0)}");
+                    Logger.Log(runnerOutput);
+                }
+
+                result = Logger.Try($"Writing runner output '{Options.RunnerOutputFile}' ...", Options.Debug, () =>
+                {
+                    File.WriteAllText(Options.RunnerOutputFile, runnerOutput);
+
+                    return true;
+                });
+
+                if (result)
+                {
+                    if (!Options.Debug && !Options.PrintRunnerOutput)
+                    {
+                        Logger.Log($"Runner output '{Options.RunnerOutputFile}' created.");
+                    }
+                }
+                else
+                {
+                    Abort($"Writing runner output '{Options.RunnerOutputFile}' failed");
+                }
             }
-
-            result = Logger.Try($"Writing runner output into '{Options.RunnerOutputFile}' ...", Options.Debug, () =>
+            else
             {
-                File.WriteAllText(Options.RunnerOutputFile, runnerOutput);
-
-                return true;
-            });
-
-            if (!result)
-            {
-                Abort($"Writing runner output into '{Options.RunnerOutputFile}' failed");
+                result = true;
             }
 
             return result;
         }
         protected abstract bool Execute(out string result);
+        bool Runner(out string runnerOutput)
+        {
+            var result = false;
+            var _runnerOutput = "";
+
+            if (Options.Runner)
+            {
+                result = Logger.Try("Running generated code ...", Options.Debug, () =>
+                {
+                    Execute(out _runnerOutput);
+
+                    return true;
+                });
+
+                if (result)
+                {
+                    if (Options.PrintRunnerOutput)
+                    {
+                        Logger.Log(_runnerOutput);
+                    }
+                    else
+                    {
+                        if (!Options.Debug)
+                        {
+                            Logger.Log($"Runner succeeded.");
+                        }
+                    }
+                }
+                else
+                {
+                    Abort($"Runner did not succeed");
+                }
+            }
+
+            runnerOutput = _runnerOutput;
+
+            return result;
+        }
         public override void Run()
         {
             string content;
@@ -196,34 +253,11 @@ namespace BladeEngine.Core
                             {
                                 if (WriteOutput())
                                 {
-                                    if (Options.Runner)
+                                    string runnerOutput;
+
+                                    if (Runner(out runnerOutput))
                                     {
-                                        var runnerOutput = "";
-
-                                        if (Logger.Try("Running generated code ...", () => Execute(out runnerOutput)))
-                                        {
-                                            if (!Options.Debug)
-                                            {
-                                                Logger.Log($"Runner succeeded.");
-                                            }
-
-                                            if (WriteRunnerOutput(runnerOutput))
-                                            {
-                                                Logger.Log($"Runner output saved.");
-                                            }
-
-                                            if (Options.PrintRunnerOutput)
-                                            {
-                                                Logger.Log(runnerOutput);
-                                            }
-                                        }
-                                        else
-                                        {
-                                            if (!Options.Debug)
-                                            {
-                                                Logger.Warn($"Runner did not succeed. Use -debug for details.");
-                                            }
-                                        }
+                                        WriteRunnerOutput(runnerOutput);
                                     }
                                     else
                                     {

@@ -17,6 +17,7 @@
         public OutputMode OutputMode { get; set; }
         public bool DontOverwriteExistingOutputFile { get; set; }
         public string RunnerOutputFile { get; set; }
+        public OutputMode RunnerOutputMode { get; set; }
         public bool DontOverwriteExistingRunnerOutputFile { get; set; }
         public bool Runner { get; set; }
         public bool PrintRunnerOutput { get; set; }

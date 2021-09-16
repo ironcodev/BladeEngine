@@ -204,7 +204,7 @@ example:
 
                     options.OutputFile = Path.Combine(Path.GetDirectoryName(options.InputFile), filename + runner.Config.FileExtension);
 
-                    if (options.OutputMode != OutputMode.Auto)
+                    if (options.OutputMode != OutputMode.Auto && options.OutputMode != OutputMode.User)
                     {
                         options.OutputMode = OutputMode.Manual;
                     }
@@ -234,6 +234,11 @@ example:
                         var filename = Path.GetFileNameWithoutExtension(options.InputFile);
 
                         options.RunnerOutputFile = Path.Combine(Environment.CurrentDirectory, filename + ".output");
+
+                        if (options.RunnerOutputMode != OutputMode.Auto && options.RunnerOutputMode != OutputMode.User)
+                        {
+                            options.RunnerOutputMode = OutputMode.Manual;
+                        }
                     }
 
                     // STEP 4.2. Validate runner model
@@ -274,6 +279,12 @@ example:
                 else
                 {
                     options.RunnerOutputFile = "";
+                }
+
+                if (!options.Runner && options.PrintRunnerOutput)
+                {
+                    logger.Log($"Please add 'runner' switch as well in order to print runner output");
+                    break;
                 }
 
                 result = true;
@@ -358,9 +369,14 @@ example:
 
                 if (arg == "-r")
                 {
-                    if (i < args.Length - 1)
+                    if (i < args.Length - 1 && !args[i + 1].StartsWith("-") && string.Compare(args[i + 1], "runner", true) != 0 && string.Compare(args[i + 1], "/?", true) != 0 && !IsSomeString(args[i + 1], true))
                     {
                         result.RunnerOutputFile = args[i + 1];
+                        result.RunnerOutputMode = OutputMode.User;
+                    }
+                    else
+                    {
+                        result.RunnerOutputMode = OutputMode.Auto;
                     }
 
                     continue;
