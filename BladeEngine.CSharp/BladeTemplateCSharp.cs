@@ -9,9 +9,12 @@ namespace BladeEngine.CSharp
         { }
         public override string RenderContent()
         {
+            var moduleName = GetModuleName();
+            var @namespace = string.IsNullOrEmpty(moduleName) ? StrongEngine.StrongConfig.Namespace : moduleName;
+
             return $@"
 {ExternalCode}
-namespace {StrongEngine.StrongConfig.Namespace}
+namespace {@namespace}
 {{
     public class {GetMainClassName()}
     {{

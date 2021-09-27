@@ -29,6 +29,15 @@ namespace BladeEngine.Core
 
             return mainClassName;
         }
+        private string moduleName;
+        public virtual void SetModuleName(string value)
+        {
+            moduleName = value;
+        }
+        public virtual string GetModuleName()
+        {
+            return moduleName;
+        }
         protected abstract string GetEngineName();
         protected virtual void SetEngineName(string engineName)
         { }

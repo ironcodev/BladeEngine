@@ -546,6 +546,12 @@ namespace BladeEngine.Core
                         if (ch == '>')
                         {
                             var includePath = buffer.Flush();
+
+                            if (string.IsNullOrEmpty(includePath))
+                            {
+                                throw new BladeEngineIncludePathEmptyException();
+                            }
+
                             var includeTemplatePath = includePath[0] == '/' || includePath[0] == '\\' ? PathHelper.Refine(includePath) : PathHelper.Refine(result.Path + "/" + includePath);
                             var finalPath = Path.Combine(Environment.CurrentDirectory, includeTemplatePath);
                             var fileExists = false;
@@ -766,6 +772,14 @@ namespace BladeEngine.Core
                         {
                             state = BladeTemplateParseState.MD5Start;
                         }
+                        else if (char.IsWhiteSpace(ch))
+                        {
+                            state = BladeTemplateParseState.IsModuleName;
+                        }
+                        else if (ch == '`')
+                        {
+                            state = BladeTemplateParseState.ModuleNameStart;
+                        }
                         else
                         {
                             reader.Store();
@@ -802,6 +816,66 @@ namespace BladeEngine.Core
                             state = BladeTemplateParseState.MD5Start;
 
                             reader.Store();
+                        }
+
+                        break;
+                    case BladeTemplateParseState.IsModuleName:
+                        if (char.IsWhiteSpace(ch))
+                        {
+                            state = BladeTemplateParseState.IsModuleName;
+                        }
+                        else if (ch == '`')
+                        {
+                            state = BladeTemplateParseState.ModuleNameStart;
+                        }
+                        else
+                        {
+                            state = BladeTemplateParseState.BodyCodeStart;
+
+                            reader.Store();
+                        }
+                        break;
+                    case BladeTemplateParseState.ModuleNameStart:
+                        if (ch == '`')
+                        {
+                            state = BladeTemplateParseState.TemplateNameEnding;
+                        }
+                        else if (Char.IsLetterOrDigit(ch) || ch == '_' || ch == '.')
+                        {
+                            buffer.Append(ch);
+                        }
+                        else
+                        {
+                            throwBladeEngineInvalidCharacterException("InvalidCharacterInModuleName", "num|alpha|_|.");
+                        }
+
+                        break;
+                    case BladeTemplateParseState.ModuleNameEnding:
+                        if (ch == '%')
+                        {
+                            state = BladeTemplateParseState.TemplateNameEnd;
+                        }
+                        else
+                        {
+                            throwBladeEngineInvalidCharacterException("ModuleeNameEndTagError", "%");
+                        }
+
+                        break;
+                    case BladeTemplateParseState.ModuleNameEnd:
+                        if (ch == '>')
+                        {
+                            var name = buffer.Flush();
+
+                            if (!string.IsNullOrEmpty(name))
+                            {
+                                result.SetModuleName(name);
+                            }
+
+                            state = BladeTemplateParseState.Start;
+                        }
+                        else
+                        {
+                            throwBladeEngineInvalidCharacterException("ModuleeNameEndTagError", ">");
                         }
 
                         break;

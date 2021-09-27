@@ -8,7 +8,8 @@ namespace BladeEngine.Java
     {
         public BladeTemplateJava(BladeEngineJava engine, string path = ".") : base(engine, path)
         {
-            var package = StrongEngine.StrongConfig.Package + ((string.IsNullOrEmpty(path) || path == ".") ? "" : path.Replace("/", ".").Replace("\\", "."));
+            var moduleName = GetModuleName();
+            var package = string.IsNullOrEmpty(moduleName) ? StrongEngine.StrongConfig.Package + ((string.IsNullOrEmpty(path) || path == ".") ? "" : path.Replace("/", ".").Replace("\\", ".")): moduleName;
 
             Dependencies = $@"package {package};
 import org.apache.commons.text.StringEscapeUtils;
