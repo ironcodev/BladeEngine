@@ -20,7 +20,7 @@ namespace BladeEngine.CLI
 Blade Template Engine v{Version}
 
 blade [runner] [-e engine] [-c engine-config] [-i input-template] [-o output] [-on]
-      [-r runner-output] [-rn] [pr] [-m model] [-debug] [-v] [-?]
+      [-r runner-output] [-rn] [pr] [-m model] [-ch cache-path] [-debug] [-v] [-?]
 
 options:
     runner  :   run template
@@ -33,6 +33,7 @@ options:
     -rn     :   do not overwrite runner output if already exists
     -pr     :   print runner output
     -c      :   engine config in json format or a filename that contains engine config in json format
+    -ch     :   path of a cache dir where runners store their compilation stuff in it (defaul is %AppData%\blade\cache)
     -m      :   model in json format or a filename containing model in json format
     -debug  :   execute runner in debug mode
     -v      :   program version
@@ -84,7 +85,7 @@ example:
 
             return result;
         }
-        static bool Validate(BladeEngineOptions options, out BladeRunner runner)
+        static bool CreateRunner(BladeRunnerOptions options, out BladeRunner runner)
         {
             var result = false;
 
@@ -92,7 +93,7 @@ example:
 
             do
             {
-                // STEP 1. Validate Egnine and extract its runner
+                // STEP 2. Validate Egnine and extract its runner
 
                 if (IsSomeString(options.EngineLibraryPath))
                 {
@@ -104,7 +105,7 @@ example:
 
                         if (runnerType == null)
                         {
-                            logger.Log($"Could not find a runner in '{options.Engine}' engine assembly that is derived from BladeRunner base class.");
+                            logger.Log($"Could not find a runner in '{options.EngineName}' engine assembly that is derived from BladeRunner base class.");
                             break;
                         }
                         else
@@ -113,14 +114,14 @@ example:
 
                             if (runner == null)
                             {
-                                logger.Abort($"Instantiating '{options.Engine}' runner failed", !options.Debug);
+                                logger.Abort($"Instantiating '{options.EngineName}' runner failed", !options.Debug);
                                 break;
                             }
                         }
                     }
                     else
                     {
-                        logger.Abort($"Loading '{options.Engine}' engine assembly failed", !options.Debug);
+                        logger.Abort($"Loading '{options.EngineName}' engine assembly failed", !options.Debug);
                     }
                 }
                 else
@@ -129,172 +130,20 @@ example:
                     break;
                 }
 
-                // STEP 2. Validate input template
-
-                if (string.IsNullOrEmpty(options.InputFile))
-                {
-                    logger.Log("No input template is specified to be compiled.");
-                    break;
-                }
-
-                if (!Path.IsPathRooted(options.InputFile))
-                {
-                    options.InputFile = Path.Combine(Environment.CurrentDirectory, options.InputFile);
-                }
-
-                if (!File.Exists(options.InputFile))
-                {
-                    logger.Log($"input file '{options.InputFile}' does not exist.");
-                    break;
-                }
-
-                // STEP 3. Validate Config
-
-                if (IsSomeString(options.GivenConfig))
-                {
-                    options.GivenConfig = options.GivenConfig.Trim();
-
-                    if (!(options.GivenConfig.StartsWith("{") && options.GivenConfig.EndsWith("}")))  // if config is not json, assume it as a file
-                    {
-                        var configPath = Path.IsPathRooted(options.GivenConfig) ? options.GivenConfig : Path.Combine(Environment.CurrentDirectory, options.GivenConfig);
-
-                        if (!File.Exists(configPath))
-                        {
-                            logger.Log($"config file '{options.GivenConfig}' not found.");
-                            break;
-                        }
-
-                        if (!logger.Try($"Reading config file {configPath}", options.Debug, () =>
-                        {
-                            options.GivenConfig = File.ReadAllText(configPath);
-                        }))
-                        {
-                            logger.Abort($"Reading config file '{configPath}' failed", !options.Debug);
-                            break;
-                        }
-                    }
-                }
-                else
-                {
-                    if (options.UseConfig)
-                    {
-                        logger.Log($"-c is used but no config is given");
-                        break;
-                    }
-                }
-
-                // STEP 3. Validate Output
-
-                if (IsSomeString(options.OutputFile))
-                {
-                    if (!Path.IsPathRooted(options.OutputFile))
-                    {
-                        options.OutputFile = Path.Combine(Environment.CurrentDirectory, options.OutputFile);
-                    }
-
-                    if (File.Exists(options.OutputFile) && options.DontOverwriteExistingOutputFile)
-                    {
-                        logger.Log($"output file '{options.OutputFile}' already exists.");
-                        break;
-                    }
-                }
-                else
-                {
-                    var filename = Path.GetFileNameWithoutExtension(options.InputFile);
-
-                    options.OutputFile = Path.Combine(Path.GetDirectoryName(options.InputFile), filename + runner.Config.FileExtension);
-
-                    if (options.OutputMode != OutputMode.Auto && options.OutputMode != OutputMode.User)
-                    {
-                        options.OutputMode = OutputMode.Manual;
-                    }
-                }
-
-                // STEP 4. Validate runner
-
-                if (options.Runner)
-                {
-                    // STEP 4.1. Validate runner output
-
-                    if (IsSomeString(options.RunnerOutputFile))
-                    {
-                        if (!Path.IsPathRooted(options.RunnerOutputFile))
-                        {
-                            options.RunnerOutputFile = Path.Combine(Environment.CurrentDirectory, options.RunnerOutputFile);
-                        }
-
-                        if (File.Exists(options.RunnerOutputFile) && options.DontOverwriteExistingRunnerOutputFile)
-                        {
-                            logger.Log($"runner output file '{options.RunnerOutputFile}' already exist.");
-                            break;
-                        }
-                    }
-                    else
-                    {
-                        var filename = Path.GetFileNameWithoutExtension(options.InputFile);
-
-                        options.RunnerOutputFile = Path.Combine(Environment.CurrentDirectory, filename + ".output");
-
-                        if (options.RunnerOutputMode != OutputMode.Auto && options.RunnerOutputMode != OutputMode.User)
-                        {
-                            options.RunnerOutputMode = OutputMode.Manual;
-                        }
-                    }
-
-                    // STEP 4.2. Validate runner model
-
-                    if (IsSomeString(options.GivenModel))
-                    {
-                        options.GivenModel = options.GivenModel.Trim();
-
-                        if (!(options.GivenModel.StartsWith("{") && options.GivenModel.EndsWith("}")))  // if model is not json, assume it as a file
-                        {
-                            options.ModelPath = Path.IsPathRooted(options.GivenModel) ? options.GivenModel : Path.Combine(Environment.CurrentDirectory, options.GivenModel);
-
-                            if (!File.Exists(options.ModelPath))
-                            {
-                                logger.Log($"model file '{options.ModelPath}' not found.");
-                                break;
-                            }
-
-                            if (!logger.Try($"Reading model file {options.ModelPath}", options.Debug, () =>
-                            {
-                                options.GivenModel = File.ReadAllText(options.ModelPath);
-                            }))
-                            {
-                                logger.Abort($"Reading model file '{options.ModelPath}' failed", !options.Debug);
-                                break;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        if (options.UseModel)
-                        {
-                            logger.Log($"-m is used but no model is given");
-                            break;
-                        }
-                    }
-                }
-                else
-                {
-                    options.RunnerOutputFile = "";
-                }
-
-                if (!options.Runner && options.PrintRunnerOutput)
-                {
-                    logger.Log($"Please add 'runner' switch as well in order to print runner output");
-                    break;
-                }
+                options.DefaultOutputExtensions = runner.EngineConfig.FileExtension;
 
                 result = true;
             } while (false);
 
             return result;
         }
-        static BladeEngineOptions GetOptions(string[] args)
+        static bool IsArgValue(string arg)
         {
-            var result = new BladeEngineOptions();
+            return !arg.StartsWith("-") && string.Compare(arg, "runner", true) != 0 && string.Compare(arg, "/?", true) != 0 && !IsSomeString(arg, true);
+        }
+        static BladeRunnerOptions GetOptions(string[] args)
+        {
+            var result = new BladeRunnerOptions();
 
             for (var i = 0; i < args.Length; i++)
             {
@@ -338,7 +187,7 @@ example:
 
                 if (arg == "-pr")
                 {
-                    result.PrintRunnerOutput = true;
+                    result.LogRunnerOutput = true;
                     continue;
                 }
 
@@ -346,7 +195,14 @@ example:
                 {
                     if (i < args.Length - 1)
                     {
-                        result.InputFile = args[i + 1];
+                        if (args[i + 1].IndexOf('<') >= 0)
+                        {
+                            result.Input = args[i + 1];
+                        }
+                        else
+                        {
+                            result.InputFile = args[i + 1];
+                        }
                     }
 
                     continue;
@@ -354,7 +210,7 @@ example:
 
                 if (arg == "-o")
                 {
-                    if (i < args.Length - 1 && !args[i + 1].StartsWith("-") && string.Compare(args[i + 1], "runner", true) != 0 && string.Compare(args[i + 1], "/?", true) != 0 && !IsSomeString(args[i + 1], true))
+                    if (i < args.Length - 1 && IsArgValue(args[i + 1]))
                     {
                         result.OutputFile = args[i + 1];
                         result.OutputMode = OutputMode.User;
@@ -369,7 +225,7 @@ example:
 
                 if (arg == "-r")
                 {
-                    if (i < args.Length - 1 && !args[i + 1].StartsWith("-") && string.Compare(args[i + 1], "runner", true) != 0 && string.Compare(args[i + 1], "/?", true) != 0 && !IsSomeString(args[i + 1], true))
+                    if (i < args.Length - 1 && IsArgValue(args[i + 1]))
                     {
                         result.RunnerOutputFile = args[i + 1];
                         result.RunnerOutputMode = OutputMode.User;
@@ -377,6 +233,16 @@ example:
                     else
                     {
                         result.RunnerOutputMode = OutputMode.Auto;
+                    }
+
+                    continue;
+                }
+
+                if (arg == "-ch")
+                {
+                    if (i < args.Length - 1 && IsArgValue(args[i + 1]))
+                    {
+                        result.CacheDir = args[i + 1];
                     }
 
                     continue;
@@ -415,7 +281,7 @@ example:
                         if (IsSomeString(path))
                         {
                             result.EngineLibraryPath = path;
-                            result.Engine = args[i + 1].ToLower();
+                            result.EngineName = args[i + 1].ToLower();
                         }
                     }
 
@@ -438,7 +304,7 @@ example:
 
                 BladeRunner runner;
 
-                if (options != null && Validate(options, out runner))
+                if (CreateRunner(options, out runner))
                 {
                     if (options.Debug)
                     {
@@ -446,7 +312,7 @@ example:
                         logger.Debug(Environment.NewLine + JsonConvert.SerializeObject(options, Formatting.Indented) + Environment.NewLine);
                     }
 
-                    runner.Run();
+                    runner.Run(options);
                 }
             }
         }

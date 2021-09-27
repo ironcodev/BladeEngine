@@ -1,148 +1,115 @@
 ﻿using System;
 using System.IO;
+using BladeEngine.Core.Utils;
 using BladeEngine.Core.Utils.Logging;
 using Newtonsoft.Json;
 using static BladeEngine.Core.Utils.LanguageConstructs;
 
 namespace BladeEngine.Core
 {
+    public class BladeRunnerRunResult : ServiceResponse
+    {
+        public BladeTemplateBase Template { get; set; }
+        public bool ParseSuceeded { get; set; }
+        public bool RenderSuceeded { get; set; }
+        public bool RunnerSuceeded { get; set; }
+        public bool SaveOutputSuceeded { get; set; }
+        public bool SaveRunnerOutputSuceeded { get; set; }
+        public string RenderedTemplate { get; set; }
+        public string RunnerOutput { get; set; }
+    }
     public abstract class BladeRunner
     {
         public ILogger Logger { get; set; }
-        protected BladeEngineOptions Options { get; set; }
-        protected BladeTemplateBase Template { get; set; }
-        protected string RenderedTemplate { get; set; }
-        public abstract BladeEngineConfigBase Config { get; }
-        public BladeRunner(ILogger logger, BladeEngineOptions options)
+        public abstract BladeEngineConfigBase EngineConfig { get; }
+        public BladeRunner(ILogger logger)
         {
             Logger = logger;
-            Options = options;
         }
-        public abstract void Run();
-        protected void Abort(string message)
-        {
-            Logger.Abort(message, !Options.Debug);
-        }
+        public abstract BladeRunnerRunResult Run(BladeRunnerOptions options);
     }
-    public abstract class BladeRunner<TBladeEngine, TBladeEngineConfig>: BladeRunner
-        where TBladeEngine: BladeEngineBase, new()
-        where TBladeEngineConfig: BladeEngineConfigBase, new()
+    public abstract class BladeRunner<TBladeEngine, TBladeEngineConfig> : BladeRunner
+        where TBladeEngine : BladeEngineBase, new()
+        where TBladeEngineConfig : BladeEngineConfigBase, new()
     {
-        public BladeRunner(ILogger logger, BladeEngineOptions options) : base(logger, options)
+        public BladeRunner(ILogger logger) : base(logger)
         { }
         protected TBladeEngine Engine { get; private set; }
-        public override BladeEngineConfigBase Config => StrongConfig;
-        private TBladeEngineConfig strongConfig;
-        public TBladeEngineConfig StrongConfig
-        {
-            get
-            {
-                if (strongConfig == null)
-                {
-                    strongConfig = new TBladeEngineConfig();
-                }
-
-                return strongConfig;
-            }
-            set
-            {
-                strongConfig = value;
-            }
-        }
-        bool InitConfig(string config)
+        public override BladeEngineConfigBase EngineConfig => Engine.Config;
+        bool InitConfig(BladeRunnerOptions options, out Exception ex)
         {
             var result = true;
 
-            if (IsSomeString(config, true))
-            {
-                var cfg = Logger.Try("Deserializing engine configuration ...", Options.Debug, () => JsonConvert.DeserializeObject<TBladeEngineConfig>(config));
+            ex = null;
 
-                StrongConfig = cfg;
+            if (IsSomeString(options.GivenConfig, true))
+            {
+                var cfg = Logger.Try("Deserializing engine configuration ...",
+                    options.Debug,
+                    () => JsonConvert.DeserializeObject<TBladeEngineConfig>(options.GivenConfig),
+                    out ex);
+
+                Engine.Config = cfg;
 
                 result = cfg != null;
             }
             else
             {
-                if (Options.Debug)
+                if (options.Debug)
                 {
                     Logger.Log(Environment.NewLine + "No config is given. Used default config.");
                 }
+
+                Engine.Config = new TBladeEngineConfig();
             }
 
-            Engine.Config = StrongConfig;
-            
-            if (Options.Debug)
+            if (options.Debug)
             {
                 Logger.Log(Environment.NewLine + "Config is:");
-                Logger.Debug(Environment.NewLine + JsonConvert.SerializeObject(StrongConfig, Formatting.Indented));
+                Logger.Debug(Environment.NewLine + JsonConvert.SerializeObject(Engine.Config, Formatting.Indented));
             }
 
             return result;
         }
-        bool GetInput(string inputFile, out string content)
+        bool Parse(BladeRunnerOptions options, out BladeTemplateBase template, out Exception ex)
         {
-            var _content = "";
+            template = Logger.Try($"Parsing input template ...", options.Debug, () => Engine.Parse(options._Input), out ex);
 
-            var result = Logger.Try($"Reading input file '{inputFile}' ...", Options.Debug, () =>
+            return template != null;
+        }
+        bool Render(BladeRunnerOptions options, BladeTemplateBase template, out string renderedTemplate, out Exception ex)
+        {
+            var _renderedTemplate = "";
+            var result = Logger.Try($"Rendering template ...", options.Debug, () =>
             {
-                _content = File.ReadAllText(inputFile);
+                _renderedTemplate = template.Render();
 
                 return true;
-            });
+            }, out ex);
 
-            if (!result)
-            {
-                Abort($"Reading input file '{inputFile}' failed");
-            }
-            else
-            {
-                if (string.IsNullOrEmpty(_content))
-                {
-                    Logger.Warn($"Input file '{inputFile}' is empty.");
-                }
-            }
-
-            content = _content;
+            renderedTemplate = _renderedTemplate;
 
             return result;
         }
-        bool Parse(string content)
-        {
-            Template = Logger.Try($"Parsing input template ...", Options.Debug, () => Engine.Parse(content));
-
-            return Template != null;
-        }
-        bool Render()
-        {
-            var renderedTemplate = "";
-            var result = Logger.Try($"Rendering template ...", Options.Debug, () =>
-            {
-                renderedTemplate = Template.Render();
-
-                return true;
-            });
-
-            RenderedTemplate = renderedTemplate;
-
-            return result;
-        }
-        bool WriteOutput()
+        bool SaveOutput(BladeRunnerOptions options, string renderedTemplate, out Exception ex)
         {
             var result = false;
 
-            if (Options.Runner && Options.OutputMode == OutputMode.Manual)
+            ex = null;
+
+            if (options.Runner && options.OutputMode == OutputMode.Manual)
             {
                 result = true;
             }
             else
             {
-                if (Options.OutputMode != OutputMode.None)
+                if (options.OutputMode != OutputMode.None)
                 {
-                    result = Logger.Try($"Writing output '{Options.OutputFile}' ...", Options.Debug, () => File.WriteAllText(Options.OutputFile, RenderedTemplate));
+                    result = Logger.Try($"Writing output '{options.OutputFile}' ...", options.Debug, () => File.WriteAllText(options.OutputFile, renderedTemplate), out ex);
 
-                    if (!Options.Debug && Options.OutputMode != OutputMode.Manual && !Options.PrintRunnerOutput)
+                    if (!options.Debug && options.OutputMode != OutputMode.Manual && !options.LogRunnerOutput)
                     {
-                        Logger.Log($"Output '{Options.OutputFile}' created.");
+                        Logger.Log($"Output '{options.OutputFile}' created.");
                     }
                 }
                 else
@@ -153,36 +120,38 @@ namespace BladeEngine.Core
 
             return result;
         }
-        bool WriteRunnerOutput(string runnerOutput)
+        bool SaveRunnerOutput(BladeRunnerOptions options, string runnerOutput, out Exception ex)
         {
             var result = false;
 
-            if (Options.OutputMode != OutputMode.None)
+            ex = null;
+
+            if (options.OutputMode != OutputMode.None)
             {
-                if (Options.Debug)
+                if (options.Debug)
                 {
                     Logger.Debug("Runner output is");
                     Logger.Log($"Length: {(runnerOutput?.Length ?? 0)}");
                     Logger.Log(runnerOutput);
                 }
 
-                result = Logger.Try($"Writing runner output '{Options.RunnerOutputFile}' ...", Options.Debug, () =>
+                result = Logger.Try($"Saving runner output '{options.RunnerOutputFile}' ...", options.Debug, () =>
                 {
-                    File.WriteAllText(Options.RunnerOutputFile, runnerOutput);
+                    File.WriteAllText(options.RunnerOutputFile, runnerOutput);
 
                     return true;
-                });
+                }, out ex);
 
                 if (result)
                 {
-                    if (!Options.Debug && !Options.PrintRunnerOutput)
+                    if (!options.Debug && !options.LogRunnerOutput)
                     {
-                        Logger.Log($"Runner output '{Options.RunnerOutputFile}' created.");
+                        Logger.Log($"Runner output '{options.RunnerOutputFile}' created.");
                     }
                 }
                 else
                 {
-                    Abort($"Writing runner output '{Options.RunnerOutputFile}' failed");
+                    Logger.Abort($"Saving runner output '{options.RunnerOutputFile}' failed", !options.Debug);
                 }
             }
             else
@@ -192,98 +161,128 @@ namespace BladeEngine.Core
 
             return result;
         }
-        protected abstract bool Execute(out string result);
-        bool Runner(out string runnerOutput)
+        protected abstract bool Execute(BladeRunnerOptions options, BladeRunnerRunResult runnerResult, out string result);
+        bool Runner(BladeRunnerOptions options, BladeRunnerRunResult runnerResult, out string runnerOutput, out Exception ex)
         {
             var result = false;
             var _runnerOutput = "";
 
-            if (Options.Runner)
+            ex = null;
+
+            result = Logger.Try("Running generated code ...", options.Debug, () => Execute(options, runnerResult, out _runnerOutput), out ex);
+
+            if (result)
             {
-                result = Logger.Try("Running generated code ...", Options.Debug, () =>
+                if (options.LogRunnerOutput)
                 {
-                    Execute(out _runnerOutput);
-
-                    return true;
-                });
-
-                if (result)
-                {
-                    if (Options.PrintRunnerOutput)
-                    {
-                        Logger.Log(_runnerOutput);
-                    }
-                    else
-                    {
-                        if (!Options.Debug)
-                        {
-                            Logger.Log($"Runner succeeded.");
-                        }
-                    }
+                    Logger.Log(_runnerOutput);
                 }
                 else
                 {
-                    Abort($"Runner did not succeed");
+                    if (!options.Debug)
+                    {
+                        Logger.Log($"Runner succeeded.");
+                    }
                 }
+            }
+            else
+            {
+                Logger.Abort($"Runner did not succeed", !options.Debug);
             }
 
             runnerOutput = _runnerOutput;
 
             return result;
         }
-        public override void Run()
+        public override BladeRunnerRunResult Run(BladeRunnerOptions options)
         {
-            string content;
+            var result = new BladeRunnerRunResult();
+            Exception ex = null;
 
-            if (GetInput(Options.InputFile, out content))
+            do
             {
+                var validateResult = options.Validate(Logger);
+
+                if (!validateResult.Succeeded)
+                {
+                    result.Copy(validateResult);
+                    break;
+                }
+
                 Engine = new TBladeEngine();
 
-                if (InitConfig(Options.GivenConfig))
+                if (!InitConfig(options, out ex))
                 {
-                    if (Parse(content))
-                    {
-                        if (Render())
-                        {
-                            if (string.IsNullOrEmpty(RenderedTemplate))
-                            {
-                                Logger.Warn($"'{Options.Engine}' template Render() method did not produce any result.");
-                            }
-                            else
-                            {
-                                if (WriteOutput())
-                                {
-                                    string runnerOutput;
-
-                                    if (Runner(out runnerOutput))
-                                    {
-                                        WriteRunnerOutput(runnerOutput);
-                                    }
-                                    else
-                                    {
-                                        if (Options.OutputMode == OutputMode.Manual)
-                                        {
-                                            Logger.Warn("Neither output specified nor asked to run the template. What's on your mind?");
-                                        }
-                                    }
-                                }
-                                else
-                                {
-                                    Abort($"Writing output '{Options.OutputFile}' ...");
-                                }
-                            }
-                        }
-                        else
-                        {
-                            Abort("Rendering template failed");
-                        }
-                    }
-                    else
-                    {
-                        Abort("Parsing input template failed");
-                    }
+                    result.TrySetStatus("DeserializingConfigFailed");
+                    break;
                 }
-            }
+
+                BladeTemplateBase template;
+
+                if (!Parse(options, out template, out ex))
+                {
+                    result.TrySetStatus("ParsingTemplateFailed");
+                    Logger.Abort("Parsing input template failed", !options.Debug);
+                    break;
+                }
+
+                result.ParseSuceeded = true;
+                result.Template = template;
+
+                string renderedTemplate;
+
+                if (!Render(options, template, out renderedTemplate, out ex))
+                {
+                    result.TrySetStatus("RenderingTemplateFailed");
+                    Logger.Abort("Rendering template failed", !options.Debug);
+                    break;
+                }
+
+                result.RenderSuceeded = true;
+                result.RenderedTemplate = renderedTemplate;
+
+                if (string.IsNullOrEmpty(renderedTemplate))
+                {
+                    result.TrySetStatus("TemplateRenderHadNoResult");
+                    Logger.Warn($"Rendering template did not produce any result. Running template aborted.");
+                    break;
+                }
+
+                if (!SaveOutput(options, renderedTemplate, out ex))
+                {
+                    result.TrySetStatus("SaveOutputFailed");
+                    Logger.Abort($"Writing output '{options.OutputFile}' ...", !options.Debug);
+                    break;
+                }
+
+                result.SaveOutputSuceeded = true;
+
+                if (options.Runner)
+                {
+                    string runnerOutput;
+
+                    if (!Runner(options, result, out runnerOutput, out ex))
+                    {
+                        if (options.OutputMode == OutputMode.Manual)
+                        {
+                            result.TrySetStatus("RunnerFailed");
+                            Logger.Warn("Neither output specified nor asked to run the template. What's on your mind?");
+                        }
+
+                        break;
+                    }
+
+                    result.RunnerSuceeded = true;
+                    result.SaveRunnerOutputSuceeded = SaveRunnerOutput(options, runnerOutput, out ex);
+                    result.RunnerOutput = runnerOutput;
+                    result.TrySetStatus("RunnerSucceeded");
+                }
+
+            } while (false);
+
+            result.Exception = ex;
+
+            return result;
         }
     }
 }

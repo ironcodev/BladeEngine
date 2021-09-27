@@ -23,7 +23,8 @@ namespace BladeEngine.CSharp
                 @namespace = value;
             }
         }
-        public bool UseGenericModel { get; set; }
+        public bool UseStrongModel { get; set; }
+        public string StrongModelType { get; set; }
         public List<string> References { get; set; }
     }
 }

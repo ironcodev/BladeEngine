@@ -1,9 +1,8 @@
-﻿using BladeEngine.Core.Utils;
-using BladeEngine.Core.Utils.Logging;
-using System;
+﻿using System;
 using System.Text;
 using System.Text.RegularExpressions;
-using static BladeEngine.Core.Utils.LanguageConstructs;
+using BladeEngine.Core.Utils;
+using BladeEngine.Core.Utils.Logging;
 
 namespace BladeEngine.Core
 {
@@ -54,6 +53,24 @@ namespace BladeEngine.Core
             }
 
             return result.ToString();
+        }
+        public static string ToMD5(this string s)
+        {
+            var buff = new System.Text.StringBuilder();
+
+            if (!string.IsNullOrEmpty(s))
+            {
+                var md5 = new System.Security.Cryptography.MD5CryptoServiceProvider();
+                var bytes = System.Text.Encoding.UTF8.GetBytes(s);
+                bytes = md5.ComputeHash(bytes);
+
+                foreach (byte ba in bytes)
+                {
+                    buff.Append(ba.ToString("x2").ToLower());
+                }
+            }
+
+            return buff.ToString();
         }
         public static bool IsSucceeded(this ShellExecuteResponse sr, string expectedOutput = null, bool ignoreCase = true, bool regexExpectedOutput = false)
         {
@@ -134,6 +151,41 @@ namespace BladeEngine.Core
 
             return result;
         }
+        public static bool Try(this ILogger logger, string message, bool debug, Action action, out Exception ex)
+        {
+            var result = false;
+
+            ex = null;
+
+            if (debug)
+            {
+                logger.Log(Environment.NewLine + message);
+            }
+
+            try
+            {
+                action();
+
+                result = true;
+
+                if (debug)
+                {
+                    logger.Success("Succeeded");
+                }
+            }
+            catch (Exception e)
+            {
+                ex = e;
+
+                if (debug)
+                {
+                    logger.Danger("Failed");
+                    logger.Danger(e.ToString(Environment.NewLine));
+                }
+            }
+
+            return result;
+        }
         public static T Try<T>(this ILogger logger, string message, bool debug, Func<T> action, T defaultValue = default)
         {
             var result = defaultValue;
@@ -154,6 +206,39 @@ namespace BladeEngine.Core
             }
             catch (Exception e)
             {
+                if (debug)
+                {
+                    logger.Danger("Failed");
+                    logger.Danger(e.ToString(Environment.NewLine));
+                }
+            }
+
+            return result;
+        }
+        public static T Try<T>(this ILogger logger, string message, bool debug, Func<T> action, out Exception ex, T defaultValue = default)
+        {
+            var result = defaultValue;
+
+            ex = null;
+
+            if (debug)
+            {
+                logger.Log(Environment.NewLine + message);
+            }
+
+            try
+            {
+                result = action();
+
+                if (debug)
+                {
+                    logger.Success("Succeeded");
+                }
+            }
+            catch (Exception e)
+            {
+                ex = e;
+
                 if (debug)
                 {
                     logger.Danger("Failed");
@@ -199,6 +284,46 @@ namespace BladeEngine.Core
 
             return result;
         }
+        public static bool Try(this ILogger logger, string message, bool debug, Func<bool> action, out Exception ex, bool defaultValue = default)
+        {
+            var result = defaultValue;
+
+            ex = null;
+
+            if (debug)
+            {
+                logger.Log(Environment.NewLine + message);
+            }
+
+            try
+            {
+                result = action();
+
+                if (debug)
+                {
+                    if (result)
+                    {
+                        logger.Success("Succeeded");
+                    }
+                    else
+                    {
+                        logger.Warn("Failed");
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                ex = e;
+
+                if (debug)
+                {
+                    logger.Danger("Failed");
+                    logger.Danger(e.ToString(Environment.NewLine));
+                }
+            }
+
+            return result;
+        }
         public static bool Try(this ILogger logger, string message, Func<bool> action, bool defaultValue = default)
         {
             var result = defaultValue;
@@ -226,11 +351,42 @@ namespace BladeEngine.Core
 
             return result;
         }
+        public static bool Try(this ILogger logger, string message, Func<bool> action, out Exception ex, bool defaultValue = default)
+        {
+            var result = defaultValue;
+
+            ex = null;
+
+            logger.Log(Environment.NewLine + message);
+
+            try
+            {
+                result = action();
+
+                if (result)
+                {
+                    logger.Success("Succeeded");
+                }
+                else
+                {
+                    logger.Warn("Failed");
+                }
+            }
+            catch (Exception e)
+            {
+                ex = e;
+
+                logger.Danger("Failed");
+                logger.Danger(e.ToString(Environment.NewLine));
+            }
+
+            return result;
+        }
         public static void Abort(this ILogger logger, string message, bool show)
         {
             if (show)
             {
-                logger.Log($"{message}. Use -debug for more details.");
+                logger.Log($"{message}{(message[message.Length - 1] == '.' ? "": ".")} Use -debug for more details.");
             }
         }
     }

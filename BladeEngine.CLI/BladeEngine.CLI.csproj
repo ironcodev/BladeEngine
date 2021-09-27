@@ -6,6 +6,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="BladeRunnerOptions.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\BladeEngine.Core\BladeEngine.Core.csproj" />
     <ProjectReference Include="..\BladeEngine.CSharp\BladeEngine.CSharp.csproj" />
     <ProjectReference Include="..\BladeEngine.Java\BladeEngine.Java.csproj" />

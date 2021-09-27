@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace BladeEngine.Core.Base.Exceptions
+namespace BladeEngine.Core.Exceptions
 {
     public class BladeEngineMergeDependenciesException: BladeEngineException
     {

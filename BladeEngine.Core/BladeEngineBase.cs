@@ -1,10 +1,10 @@
-﻿using BladeEngine.Core.Base.Exceptions;
-using BladeEngine.Core.Utils;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Collections.Generic;
+using BladeEngine.Core.Exceptions;
+using BladeEngine.Core.Utils;
 using static BladeEngine.Core.Utils.LanguageConstructs;
 
 namespace BladeEngine.Core
@@ -16,6 +16,7 @@ namespace BladeEngine.Core
         {
             Config = config;
         }
+        protected bool endParseOnFirstEngineNameOccuranceDetection;
         protected abstract string WriteLiteral(string literal);
         protected abstract string WriteValue(string value);
         protected string MergeDependencies(string currentDependencies,
@@ -80,7 +81,8 @@ namespace BladeEngine.Core
         {
             return currentExternalCodes + Environment.NewLine + newExternalCodes;
         }
-        protected abstract BladeTemplateBase CreateTemplate();
+        protected abstract void OnIncludeTemplate(BladeTemplateBase current, BladeTemplateBase include);
+        protected abstract BladeTemplateBase CreateTemplate(string path);
         #region Encode/Decode
         protected virtual string HtmlEncode(string s)
         {
@@ -119,15 +121,24 @@ namespace BladeEngine.Core
             return WriteValue($"{(Config.CamelCase ? "b" : "B")}ase64Decode({s})");
         }
         #endregion
-        public BladeTemplateBase Parse(string template)
+        public static string GetEngineName(string template)
         {
-            var result = CreateTemplate();
+            var engine = new BladeEngineAny(new BladeEngineConfigAny());
+
+            var templateResult = engine.Parse(template);
+
+            return templateResult.EngineName;
+        }
+        public virtual BladeTemplateBase Parse(string template, string path = ".")
+        {
+            var result = CreateTemplate(path);
             var reader = new CharReader(template);
             var body = new StringBuilder();
             var functions = new StringBuilder();
             var state = BladeTemplateParseState.Start;
             var prevState = state;
             var buffer = new CharBuffer();
+            var setEngineName = false;
             var functionStarted = false;
             var functionShouldClose = false;
             var stringStart = default(char);
@@ -266,6 +277,10 @@ namespace BladeEngine.Core
                         {
                             state = BladeTemplateParseState.DependencyEnd;
                         }
+                        else if (ch == '@')
+                        {
+                            state = BladeTemplateParseState.IsDependencyEnd;
+                        }
                         else
                         {
                             if (ch == '\\')
@@ -281,15 +296,45 @@ namespace BladeEngine.Core
                         }
 
                         break;
-                    case BladeTemplateParseState.DependencyEnd:
-                        if (ch == '>')
+                    case BladeTemplateParseState.IsDependencyEnd:
+                        if (ch == '%')
                         {
-                            result.Dependencies += Environment.NewLine + buffer.Flush();
-
-                            state = BladeTemplateParseState.Start;
+                            state = BladeTemplateParseState.DependencyEnd;
+                            setEngineName = true;
                         }
                         else
                         {
+                            reader.Store();
+
+                            state = BladeTemplateParseState.DependencyStart;
+                        }
+
+                        break;
+                    case BladeTemplateParseState.DependencyEnd:
+                        if (ch == '>')
+                        {
+                            if (setEngineName)
+                            {
+                                result.EngineName = buffer.Flush();
+                            }
+                            else
+                            {
+                                result.Dependencies += Environment.NewLine + buffer.Flush();
+                            }
+
+                            setEngineName = false;
+
+                            state = BladeTemplateParseState.Start;
+
+                            if (endParseOnFirstEngineNameOccuranceDetection)
+                            {
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            setEngineName = false;
+
                             reader.Store();
 
                             state = BladeTemplateParseState.DependencyStart;
@@ -500,20 +545,53 @@ namespace BladeEngine.Core
                     case BladeTemplateParseState.IncludeEnd:
                         if (ch == '>')
                         {
-                            var path = buffer.Flush();
+                            var includePath = buffer.Flush();
+                            var includeTemplatePath = includePath[0] == '/' || includePath[0] == '\\' ? PathHelper.Refine(includePath) : PathHelper.Refine(result.Path + "/" + includePath);
+                            var finalPath = Path.Combine(Environment.CurrentDirectory, includeTemplatePath);
+                            var fileExists = false;
 
-                            path = Path.Combine(Environment.CurrentDirectory, path);
+                            finalPath = PathHelper.Refine(finalPath);
 
-                            if (!File.Exists(path))
+                            if (finalPath.EndsWith("/"))
                             {
-                                throw new BladeIncludeFileNotFoundException(path);
+                                finalPath += "index.blade";
+                            }
+                            else
+                            {
+                                if (!File.Exists(finalPath))
+                                {
+                                    if (Directory.Exists(finalPath))
+                                    {
+                                        finalPath += "/index.blade";
+                                    }
+                                    else
+                                    {
+                                        var lastSlash = finalPath.LastIndexOf('/');
+                                        var lastDot = finalPath.LastIndexOf('.');
+
+                                        if (lastSlash >= 0 && lastDot < lastSlash)
+                                        {
+                                            finalPath = finalPath + ".blade";
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    fileExists = true;
+                                }
                             }
 
-                            var content = Try(() => File.ReadAllText(path), e => new BladeEngineIncludeFileReadException(path, e));
-                            var ir = Try(() => Parse(content), e => new BladeEngineIncludeFileParseException(path, e));
+                            if (!fileExists && !File.Exists(finalPath))
+                            {
+                                throw new BladeIncludeFileNotFoundException(finalPath);
+                            }
+
+                            var content = Try(() => File.ReadAllText(finalPath), e => new BladeEngineIncludeFileReadException(finalPath, e));
+                            var itr = Try(() => Parse(content, includeTemplatePath), e => new BladeEngineIncludeFileParseException(finalPath, e));
+
+                            result.InnerTemplates.Add(includeTemplatePath, itr);
                             
-                            result.Dependencies = Try(() => MergeDependencies(result.Dependencies, ir.Dependencies), e => new BladeEngineMergeDependenciesException(path, e));
-                            result.ExternalCode += Environment.NewLine + ir.ExternalCode + Environment.NewLine + ir.Body;
+                            OnIncludeTemplate(result, itr);
 
                             state = BladeTemplateParseState.Start;
                         }

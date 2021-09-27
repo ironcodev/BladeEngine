@@ -1,14 +1,20 @@
-﻿using System;
+﻿using BladeEngine.Core.Exceptions;
+using System;
+using System.Collections.Generic;
 
 namespace BladeEngine.Core
 {
     public abstract class BladeTemplateBase
     {
-        public BladeEngineBase Engine { get; private set; }
-        public BladeTemplateBase(BladeEngineBase engine)
+        public BladeTemplateBase(BladeEngineBase engine, string path = ".")
         {
             Engine = engine;
+            InnerTemplates = new Dictionary<string, BladeTemplateBase>();
+            Path = path;
         }
+        public string Path { get; private set; }
+        public Dictionary<string, BladeTemplateBase> InnerTemplates { get; set; }
+        public BladeEngineBase Engine { get; private set; }
         private string mainClassName;
         public virtual void SetMainClassName(string value)
         {
@@ -22,6 +28,32 @@ namespace BladeEngine.Core
             }
 
             return mainClassName;
+        }
+        protected abstract string GetEngineName();
+        protected virtual void SetEngineName(string engineName)
+        { }
+        public string EngineName
+        {
+            get
+            {
+                return GetEngineName();
+            }
+            set
+            {
+                var engineName = GetEngineName();
+
+                if (string.IsNullOrEmpty(engineName))
+                {
+                    SetEngineName(value);
+                }
+                else
+                {
+                    if (string.Compare(value, engineName) != 0)
+                    {
+                        throw new BladeEngineInvalidEngineNameException(engineName, value);
+                    }
+                }
+            }
         }
         public string Dependencies { get; set; }
         public string Functions { get; set; }
@@ -43,7 +75,7 @@ namespace BladeEngine.Core
     public abstract class BladeTemplateBase<T>: BladeTemplateBase
         where T: BladeEngineBase
     {
-        public BladeTemplateBase(T engine): base(engine)
+        public BladeTemplateBase(T engine, string path): base(engine, path)
         { }
         public T StrongEngine
         {

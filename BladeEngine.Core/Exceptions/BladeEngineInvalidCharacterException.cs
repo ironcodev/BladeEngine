@@ -1,10 +1,9 @@
 ﻿using System;
-using System.Runtime.Serialization;
 
-namespace BladeEngine.Core.Base.Exceptions
+namespace BladeEngine.Core.Exceptions
 {
     [Serializable]
-    internal class BladeEngineInvalidCharacterException : BladeEngineException
+    public class BladeEngineInvalidCharacterException : BladeEngineException
     {
         public char Char { get; private set; }
         public int Row { get; private set; }

@@ -30,9 +30,9 @@ namespace BladeEngine.Java
 
             return result.ToString();
         }
-        protected override BladeTemplateBase CreateTemplate()
+        protected override BladeTemplateBase CreateTemplate(string path)
         {
-            return new BladeTemplateJava(this);
+            return new BladeTemplateJava(this, path);
         }
         protected override string WriteValue(string str)
         {
@@ -41,6 +41,21 @@ namespace BladeEngine.Java
         protected override string MergeDependencies(string currentDependencies, string newDependencies)
         {
             return MergeDependencies(currentDependencies, newDependencies, "import", ";");
+        }
+
+        protected override void OnIncludeTemplate(BladeTemplateBase current, BladeTemplateBase include)
+        {
+            var includePackage = "";
+
+            if (include.Path.StartsWith(".."))
+            includePackage = include.Path.Substring(current.Path.Length).Replace("/", ".").Replace("\\", ".");
+
+            if (includePackage.StartsWith("."))
+            {
+                includePackage = includePackage.Substring(1);
+            }
+
+            current.Dependencies += Environment.NewLine + "import " + includePackage + "." + include.GetMainClassName() + ";";
         }
     }
 }

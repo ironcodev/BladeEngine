@@ -1,10 +1,11 @@
 ﻿using BladeEngine.Core;
+using static BladeEngine.Core.Utils.LanguageConstructs;
 
 namespace BladeEngine.CSharp
 {
     public class BladeTemplateCSharp : BladeTemplateBase<BladeEngineCSharp>
     {
-        public BladeTemplateCSharp(BladeEngineCSharp engine): base(engine)
+        public BladeTemplateCSharp(BladeEngineCSharp engine, string path = "."): base(engine, path)
         { }
         public override string RenderContent()
         {
@@ -84,7 +85,7 @@ namespace {StrongEngine.StrongConfig.Namespace}
             return System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String(s));
         }}
         #endregion
-        public string {(StrongEngine.StrongConfig.UseGenericModel ? "Render<T>(T model = default)" : "Render(dynamic model = (object)null)")}
+        public string {(StrongEngine.StrongConfig.UseStrongModel && IsSomeString(StrongEngine.StrongConfig.StrongModelType) ? $"Render({StrongEngine.StrongConfig.StrongModelType} model = default)" : "Render(dynamic model = (object)null)")}
         {{
             {Body}
             var result = _buffer.ToString();
@@ -97,6 +98,11 @@ namespace {StrongEngine.StrongConfig.Namespace}
     }}
 }}
 ";
+        }
+
+        protected override string GetEngineName()
+        {
+            return "csharp";
         }
     }
 }

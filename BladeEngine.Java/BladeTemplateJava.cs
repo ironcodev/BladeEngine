@@ -1,12 +1,16 @@
 ﻿using BladeEngine.Core;
+using BladeEngine.Core.Exceptions;
+using System.Collections.Generic;
 
 namespace BladeEngine.Java
 {
     public class BladeTemplateJava : BladeTemplateBase<BladeEngineJava>
     {
-        public BladeTemplateJava(BladeEngineJava engine) : base(engine)
+        public BladeTemplateJava(BladeEngineJava engine, string path = ".") : base(engine, path)
         {
-            Dependencies = $@"package {StrongEngine.StrongConfig.Package};
+            var package = StrongEngine.StrongConfig.Package + ((string.IsNullOrEmpty(path) || path == ".") ? "" : path.Replace("/", ".").Replace("\\", "."));
+
+            Dependencies = $@"package {package};
 import org.apache.commons.text.StringEscapeUtils;
 import java.net.URLEncoder;
 import java.net.URLDecoder;
@@ -16,7 +20,10 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.io.UnsupportedEncodingException;
 import java.security.NoSuchAlgorithmException;";
+
+            ClassPath = new List<string>();
         }
+        public List<string> ClassPath { get; set; }
         public override string RenderContent()
         {
             return $@"
@@ -106,6 +113,10 @@ import java.security.NoSuchAlgorithmException;";
         {Functions}
     }}
 ";
+        }
+        protected override string GetEngineName()
+        {
+            return "java";
         }
     }
 }

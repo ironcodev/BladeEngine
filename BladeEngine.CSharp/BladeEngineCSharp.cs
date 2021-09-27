@@ -1,5 +1,7 @@
 ﻿using System;
 using BladeEngine.Core;
+using BladeEngine.Core.Exceptions;
+using static BladeEngine.Core.Utils.LanguageConstructs;
 
 namespace BladeEngine.CSharp
 {
@@ -13,9 +15,9 @@ namespace BladeEngine.CSharp
         {
             return string.IsNullOrEmpty(str) ? "" : $"{Environment.NewLine}_buffer.Append(@\"{str.Replace("\"", "\"\"")}\");";
         }
-        protected override BladeTemplateBase CreateTemplate()
+        protected override BladeTemplateBase CreateTemplate(string path)
         {
-            return new BladeTemplateCSharp(this);
+            return new BladeTemplateCSharp(this, path);
         }
         protected override string WriteValue(string str)
         {
@@ -38,6 +40,12 @@ namespace BladeEngine.CSharp
 
                 return result;
             });
+        }
+
+        protected override void OnIncludeTemplate(BladeTemplateBase current, BladeTemplateBase include)
+        {
+            current.Dependencies = Try(() => MergeDependencies(current.Dependencies, include.Dependencies), e => new BladeEngineMergeDependenciesException(include.Path, e));
+            current.ExternalCode += Environment.NewLine + include.ExternalCode + Environment.NewLine + include.Body;
         }
     }
 }

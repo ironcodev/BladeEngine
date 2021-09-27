@@ -8,6 +8,7 @@
         BackSlash,
         BackSlashPercent,
         DependencyStart,
+        IsDependencyEnd,
         DependencyEnd,
         TemplateNameStart,
         TemplateNameEnding,
