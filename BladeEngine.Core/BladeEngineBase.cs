@@ -384,7 +384,7 @@ namespace BladeEngine.Core
 
                             if (string.IsNullOrEmpty(name))
                             {
-                                throw new BladeEngineMissingTemplateNameException();
+                                throw new BladeEngineMissingTemplateNameException(reader.Row, reader.Col);
                             }
 
                             result.SetMainClassName(name);
@@ -559,7 +559,7 @@ namespace BladeEngine.Core
 
                             if (string.IsNullOrEmpty(includePath))
                             {
-                                throw new BladeEngineIncludePathEmptyException();
+                                throw new BladeEngineIncludePathEmptyException(reader.Row, reader.Col);
                             }
 
                             var includeTemplatePath = includePath[0] == '/' || includePath[0] == '\\' ? PathHelper.Refine(includePath) : PathHelper.Refine(result.Path + "/" + includePath);
@@ -599,11 +599,11 @@ namespace BladeEngine.Core
 
                             if (!fileExists && !File.Exists(finalPath))
                             {
-                                throw new BladeIncludeFileNotFoundException(finalPath);
+                                throw new BladeIncludeFileNotFoundException(reader.Row, reader.Col, finalPath);
                             }
 
-                            var content = Try(() => File.ReadAllText(finalPath), e => new BladeEngineIncludeFileReadException(finalPath, e));
-                            var itr = Try(() => Parse(content, includeTemplatePath), e => new BladeEngineIncludeFileParseException(finalPath, e));
+                            var content = Try(() => File.ReadAllText(finalPath), e => new BladeEngineIncludeFileReadException(reader.Row, reader.Col, finalPath, e));
+                            var itr = Try(() => Parse(content, includeTemplatePath), e => new BladeEngineIncludeFileParseException(reader.Row, reader.Col, finalPath, e));
 
                             result.InnerTemplates.Add(includeTemplatePath, itr);
                             
@@ -1282,13 +1282,13 @@ namespace BladeEngine.Core
                     currentTag = "function <%~ ... ";
                 }
 
-                throw string.IsNullOrEmpty(currentTag) ? new BladeEngineException($"Unknown error. Current state is {state}") : new BladeEngineUnterminatedTagException(currentTag);
+                throw string.IsNullOrEmpty(currentTag) ? new BladeEngineException($"Unknown error. Current state is {state}") : new BladeEngineUnterminatedTagException(reader.Row, reader.Col, currentTag);
             }
             else
             {
                 if (functionStarted)
                 {
-                    throw new BladeEngineUnterminatedFunctionException();
+                    throw new BladeEngineUnterminatedFunctionException(reader.Row, reader.Col);
                 }
 
                 var literal = buffer.Flush();

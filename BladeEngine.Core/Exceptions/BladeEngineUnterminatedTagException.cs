@@ -5,7 +5,7 @@ namespace BladeEngine.Core.Exceptions
     [Serializable]
     public class BladeEngineUnterminatedTagException : BladeEngineException
     {
-        public BladeEngineUnterminatedTagException(string tag) : base($"Unterminated {tag}")
+        public BladeEngineUnterminatedTagException(int row, int col, string tag) : base(row, col, $"Unterminated {tag}")
         { }
     }
 }

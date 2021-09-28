@@ -5,7 +5,7 @@ namespace BladeEngine.Core.Exceptions
     [Serializable]
     public class BladeEngineIncludePathEmptyException : BladeEngineException
     {
-        public BladeEngineIncludePathEmptyException() : base($"No include path specified")
+        public BladeEngineIncludePathEmptyException(int row, int col) : base(row, col, $"No include path specified")
         { }
     }
 }

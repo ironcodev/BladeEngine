@@ -5,7 +5,7 @@ namespace BladeEngine.Core.Exceptions
     [Serializable]
     public class BladeEngineIncludePathUnderflowException : BladeEngineException
     {
-        public BladeEngineIncludePathUnderflowException(string includePath) : base($"Include path {includePath} surpasses root in going back")
+        public BladeEngineIncludePathUnderflowException(int row, int col, string includePath) : base(row, col, $"Include path {includePath} surpasses root in going back")
         { }
     }
 }

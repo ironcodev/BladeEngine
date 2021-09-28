@@ -4,7 +4,7 @@ namespace BladeEngine.Core.Exceptions
 {
     public class BladeEngineMergeDependenciesException: BladeEngineException
     {
-        public BladeEngineMergeDependenciesException(string includePath, Exception e): base($"Error while merging include file '{includePath}' dependencies", e)
+        public BladeEngineMergeDependenciesException(int row, int col, string includePath, Exception e): base(row, col, $"Error while merging include file '{includePath}' dependencies", e)
         { }
     }
 }

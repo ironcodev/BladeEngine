@@ -5,7 +5,7 @@ namespace BladeEngine.Core.Exceptions
     [Serializable]
     public class BladeIncludeFileNotFoundException : BladeEngineException
     {
-        public BladeIncludeFileNotFoundException(string includePath) : base($"Include file {includePath} not found")
+        public BladeIncludeFileNotFoundException(int row, int col, string includePath) : base(row, col, $"Include file {includePath} not found")
         { }
     }
 }

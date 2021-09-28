@@ -4,7 +4,7 @@ namespace BladeEngine.Core.Exceptions
 {
     public class BladeEngineMissingTemplateNameException : BladeEngineException
     {
-        public BladeEngineMissingTemplateNameException() : base("Missing template name. No template name is specified.")
+        public BladeEngineMissingTemplateNameException(int row, int col) : base(row, col, "Missing template name. No template name is specified.")
         {
         }
     }
