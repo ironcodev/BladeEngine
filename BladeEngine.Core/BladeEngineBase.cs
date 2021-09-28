@@ -199,10 +199,7 @@ namespace BladeEngine.Core
                         switch (ch)
                         {
                             case '@':
-                                state = BladeTemplateParseState.DependencyStart;
-                                break;
-                            case '`':
-                                state = BladeTemplateParseState.TemplateNameStart;
+                                state = BladeTemplateParseState.IsDependencyStart;
                                 break;
                             case '!':
                                 state = BladeTemplateParseState.ExternalCodeStart;
@@ -269,6 +266,19 @@ namespace BladeEngine.Core
                             buffer.Append("\\%" + ch);
 
                             state = prevState;
+                        }
+
+                        break;
+                    case BladeTemplateParseState.IsDependencyStart:
+                        if (ch == '`')
+                        {
+                            state = BladeTemplateParseState.TemplateNameStart;
+                        }
+                        else
+                        {
+                            state = BladeTemplateParseState.DependencyStart;
+
+                            reader.Store();
                         }
 
                         break;
@@ -772,10 +782,6 @@ namespace BladeEngine.Core
                         {
                             state = BladeTemplateParseState.MD5Start;
                         }
-                        else if (char.IsWhiteSpace(ch))
-                        {
-                            state = BladeTemplateParseState.IsModuleName;
-                        }
                         else if (ch == '`')
                         {
                             state = BladeTemplateParseState.ModuleNameStart;
@@ -818,22 +824,6 @@ namespace BladeEngine.Core
                             reader.Store();
                         }
 
-                        break;
-                    case BladeTemplateParseState.IsModuleName:
-                        if (char.IsWhiteSpace(ch))
-                        {
-                            state = BladeTemplateParseState.IsModuleName;
-                        }
-                        else if (ch == '`')
-                        {
-                            state = BladeTemplateParseState.ModuleNameStart;
-                        }
-                        else
-                        {
-                            state = BladeTemplateParseState.BodyCodeStart;
-
-                            reader.Store();
-                        }
                         break;
                     case BladeTemplateParseState.ModuleNameStart:
                         if (ch == '`')
