@@ -566,7 +566,14 @@ namespace BladeEngine.Core
                             var finalPath = Path.Combine(Environment.CurrentDirectory, includeTemplatePath);
                             var fileExists = false;
 
-                            finalPath = PathHelper.Refine(finalPath);
+                            try
+                            {
+                                finalPath = PathHelper.Refine(finalPath);
+                            }
+                            catch (Exception)
+                            {
+                                throw new BladeEngineIncludePathUnderflowException(reader.Row, reader.Col, includePath);
+                            }
 
                             if (finalPath.EndsWith("/"))
                             {
