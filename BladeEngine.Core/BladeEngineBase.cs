@@ -29,30 +29,33 @@ namespace BladeEngine.Core
             {
                 var result = new List<string>();
 
-                foreach (var line in dependencies.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries))
+                if (!string.IsNullOrEmpty(dependencies))
                 {
-                    foreach (var dependency in line.Split(separator, StringSplitOptions.RemoveEmptyEntries))
+                    foreach (var line in dependencies.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries))
                     {
-                        var current = dependency.Trim();
-
-                        if (current.Length > 0)
+                        foreach (var dependency in line.Split(separator, StringSplitOptions.RemoveEmptyEntries))
                         {
-                            if (current.StartsWith(keyword, StringComparison.Ordinal))
+                            var current = dependency.Trim();
+
+                            if (current.Length > 0)
                             {
-                                if (char.IsWhiteSpace(current[keyword.Length]))
+                                if (current.StartsWith(keyword, StringComparison.Ordinal))
                                 {
-                                    current = current.Substring(keyword.Length).Trim();
+                                    if (char.IsWhiteSpace(current[keyword.Length]))
+                                    {
+                                        current = current.Substring(keyword.Length).Trim();
+                                    }
                                 }
-                            }
 
-                            if (dependencyRefiner != null)
-                            {
-                                current = dependencyRefiner(result, current);
-                            }
+                                if (dependencyRefiner != null)
+                                {
+                                    current = dependencyRefiner(result, current);
+                                }
 
-                            if (!result.Contains(current))
-                            {
-                                result.Add(current);
+                                if (!result.Contains(current))
+                                {
+                                    result.Add(current);
+                                }
                             }
                         }
                     }

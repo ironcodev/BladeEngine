@@ -48,7 +48,7 @@ namespace BladeEngine.Core
 
             while (current != null)
             {
-                result.Append(e.Message + separator);
+                result.Append(current.Message + separator);
 
                 current = current.InnerException;
             }

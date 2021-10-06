@@ -46,9 +46,9 @@ namespace BladeEngine.CSharp
         {
             current.Dependencies = Try(() => MergeDependencies(current.Dependencies, include.Dependencies + Environment.NewLine + $"using {include.GetModuleName()};"), e => new BladeEngineMergeDependenciesException(reader.Row, reader.Col, include.Settings.Path, e));
             current.ExternalCode += $@"
-// ------ include: ${include.Settings.Path} (start) -------
+// ------ include: {include.Settings.Path} ({include.Settings.AbsolutePath}) (start) -------
 {include.RenderContent()}
-// ------ include: ${include.Settings.Path} ( end ) -------";
+// ------ include: {include.Settings.Path} ({include.Settings.AbsolutePath}) ( end ) -------";
 
             return true;
         }
