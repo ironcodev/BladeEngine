@@ -22,25 +22,56 @@ namespace BladeEngine.Core.Utils
 
             return path;
         }
+        static string execDir;
         public static string ExecDir
         {
             get
             {
-                return RemoveTrailingSlash(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
+                if (string.IsNullOrEmpty(execDir))
+                {
+                    execDir = RemoveTrailingSlash(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
+                }
+
+                return execDir;
             }
         }
+        static string callerDir;
         public static string CallerDir
         {
             get
             {
-                return RemoveTrailingSlash(Path.GetDirectoryName(Assembly.GetCallingAssembly().Location));
+                if (string.IsNullOrEmpty(callerDir))
+                {
+                    callerDir = RemoveTrailingSlash(Path.GetDirectoryName(Assembly.GetCallingAssembly().Location));
+                }
+
+                return callerDir;
             }
         }
+        static string domainDir;
         public static string DomainDir
         {
             get
             {
-                return RemoveTrailingSlash(AppDomain.CurrentDomain.BaseDirectory);
+                if (string.IsNullOrEmpty(domainDir))
+                {
+                    domainDir = RemoveTrailingSlash(AppDomain.CurrentDomain.BaseDirectory);
+                }
+
+                return domainDir;
+            }
+        }
+        static string programDir;
+        public static string ProgramDir
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(programDir))
+                {
+                    programDir = RemoveTrailingSlash(Path.GetDirectoryName(typeof(AppPath).Assembly.Location));
+                }
+
+                return programDir;
             }
         }
     }

@@ -29,12 +29,12 @@ namespace BladeEngine.Core
             {
                 if (string.IsNullOrEmpty(cacheDir))
                 {
-                    cacheDir = AppPath.ExecDir + "\\cache";
+                    cacheDir = AppPath.ProgramDir + "\\cache";
                 }
 
                 if (!Path.IsPathRooted(cacheDir))
                 {
-                    cacheDir = Path.Combine(AppPath.ExecDir, cacheDir);
+                    cacheDir = Path.Combine(AppPath.ProgramDir, cacheDir);
                 }
 
                 return cacheDir;

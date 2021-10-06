@@ -1,23 +1,11 @@
 ﻿using System;
 using System.IO;
-using BladeEngine.Core.Utils;
 using BladeEngine.Core.Utils.Logging;
 using Newtonsoft.Json;
 using static BladeEngine.Core.Utils.LanguageConstructs;
 
 namespace BladeEngine.Core
 {
-    public class BladeRunnerRunResult : ServiceResponse
-    {
-        public BladeTemplateBase Template { get; set; }
-        public bool ParseSuceeded { get; set; }
-        public bool RenderSuceeded { get; set; }
-        public bool RunnerSuceeded { get; set; }
-        public bool SaveOutputSuceeded { get; set; }
-        public bool SaveRunnerOutputSuceeded { get; set; }
-        public string RenderedTemplate { get; set; }
-        public string RunnerOutput { get; set; }
-    }
     public abstract class BladeRunner
     {
         public ILogger Logger { get; set; }
@@ -33,7 +21,9 @@ namespace BladeEngine.Core
         where TBladeEngineConfig : BladeEngineConfigBase, new()
     {
         public BladeRunner(ILogger logger) : base(logger)
-        { }
+        {
+            Engine = new TBladeEngine();
+        }
         protected TBladeEngine Engine { get; private set; }
         public override BladeEngineConfigBase EngineConfig => Engine.Config;
         bool InitConfig(BladeRunnerOptions options, out Exception ex)
@@ -208,8 +198,6 @@ namespace BladeEngine.Core
                     result.Copy(validateResult);
                     break;
                 }
-
-                Engine = new TBladeEngine();
 
                 if (!InitConfig(options, out ex))
                 {

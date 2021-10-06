@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Text;
 using System.Text.RegularExpressions;
 using BladeEngine.Core.Utils;
@@ -119,7 +120,15 @@ namespace BladeEngine.Core
         {
             logger.Log(message, LogType.Debug);
         }
+        public static void Abort(this ILogger logger, string message, bool show)
+        {
+            if (show)
+            {
+                logger.Log($"{message}{(message[message.Length - 1] == '.' ? "" : ".")} Use -debug for more details.");
+            }
+        }
         #endregion
+        #region Try
         public static bool Try(this ILogger logger, string message, bool debug, Action action)
         {
             var result = false;
@@ -382,12 +391,25 @@ namespace BladeEngine.Core
 
             return result;
         }
-        public static void Abort(this ILogger logger, string message, bool show)
+        #endregion
+        public static string Join(this IEnumerable enumerable, string separator)
         {
-            if (show)
+            var sb = new StringBuilder();
+
+            if (enumerable != null)
             {
-                logger.Log($"{message}{(message[message.Length - 1] == '.' ? "": ".")} Use -debug for more details.");
+                foreach (var item in enumerable)
+                {
+                    if (sb.Length >= 0)
+                    {
+                        sb.Append(separator);
+                    }
+
+                    sb.Append(item);
+                }
             }
+
+            return sb.ToString();
         }
     }
 }

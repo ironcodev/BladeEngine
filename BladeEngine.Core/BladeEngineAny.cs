@@ -1,4 +1,5 @@
-﻿using System;
+﻿using BladeEngine.Core.Utils;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -10,7 +11,7 @@ namespace BladeEngine.Core
     }
     public class BladeTemplateAny : BladeTemplateBase
     {
-        public BladeTemplateAny(BladeEngineBase engine, string path = ".") : base(engine, path)
+        public BladeTemplateAny(BladeEngineBase engine, BladeTemplateSettings settings = null) : base(engine, settings)
         { }
         private string engineName;
         public override string RenderContent()
@@ -27,16 +28,21 @@ namespace BladeEngine.Core
         {
             this.engineName = engineName;
         }
+
+        public override string GetFullMainClassName()
+        {
+            return "";
+        }
     }
     public class BladeEngineAny : BladeEngineBase
     {
         public BladeEngineAny(BladeEngineConfigAny config): base(config)
         { }
-        protected override BladeTemplateBase CreateTemplate(string path)
+        protected override BladeTemplateBase CreateTemplate(BladeTemplateSettings settings)
         {
             return new BladeTemplateAny(this);
         }
-        public override BladeTemplateBase Parse(string template, string path = ".")
+        public override BladeTemplateBase Parse(string template, BladeTemplateSettings settings = null)
         {
             endParseOnFirstEngineNameOccuranceDetection = true;
 
@@ -59,8 +65,9 @@ namespace BladeEngine.Core
             return "";
         }
 
-        protected override void OnIncludeTemplate(BladeTemplateBase current, BladeTemplateBase include)
+        protected override bool OnIncludeTemplate(CharReader reader, BladeTemplateBase current, BladeTemplateBase include)
         {
+            return true;
         }
     }
 }

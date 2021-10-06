@@ -1,6 +1,7 @@
 ﻿using System;
 using BladeEngine.Core;
 using BladeEngine.Core.Exceptions;
+using BladeEngine.Core.Utils;
 using static BladeEngine.Core.Utils.LanguageConstructs;
 
 namespace BladeEngine.CSharp
@@ -15,9 +16,9 @@ namespace BladeEngine.CSharp
         {
             return string.IsNullOrEmpty(str) ? "" : $"{Environment.NewLine}_buffer.Append(@\"{str.Replace("\"", "\"\"")}\");";
         }
-        protected override BladeTemplateBase CreateTemplate(string path)
+        protected override BladeTemplateBase CreateTemplate(BladeTemplateSettings settings)
         {
-            return new BladeTemplateCSharp(this, path);
+            return new BladeTemplateCSharp(this, settings);
         }
         protected override string WriteValue(string str)
         {
@@ -41,11 +42,15 @@ namespace BladeEngine.CSharp
                 return result;
             });
         }
-
-        protected override void OnIncludeTemplate(BladeTemplateBase current, BladeTemplateBase include)
+        protected override bool OnIncludeTemplate(CharReader reader, BladeTemplateBase current, BladeTemplateBase include)
         {
-            current.Dependencies = Try(() => MergeDependencies(current.Dependencies, include.Dependencies), e => new BladeEngineMergeDependenciesException(include.Path, e));
-            current.ExternalCode += Environment.NewLine + include.ExternalCode + Environment.NewLine + include.Body;
+            current.Dependencies = Try(() => MergeDependencies(current.Dependencies, include.Dependencies + Environment.NewLine + $"using {include.GetModuleName()};"), e => new BladeEngineMergeDependenciesException(reader.Row, reader.Col, include.Settings.Path, e));
+            current.ExternalCode += $@"
+// ------ include: ${include.Settings.Path} (start) -------
+{include.RenderContent()}
+// ------ include: ${include.Settings.Path} ( end ) -------";
+
+            return true;
         }
     }
 }

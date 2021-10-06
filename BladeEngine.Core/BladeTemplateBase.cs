@@ -1,41 +1,92 @@
-﻿using BladeEngine.Core.Exceptions;
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using BladeEngine.Core.Exceptions;
+using static BladeEngine.Core.Utils.LanguageConstructs;
 
 namespace BladeEngine.Core
 {
     public abstract class BladeTemplateBase
     {
-        public BladeTemplateBase(BladeEngineBase engine, string path = ".")
+        protected string ClassNameRegex;
+        protected string ModuleNameRegex;
+        public BladeTemplateBase(BladeEngineBase engine, BladeTemplateSettings settings = null)
         {
+            if (settings == null)
+            {
+                settings = new BladeTemplateSettings();
+            }
+
+            Settings = settings;
             Engine = engine;
-            InnerTemplates = new Dictionary<string, BladeTemplateBase>();
-            Path = path;
+            InnerTemplates = new List<BladeTemplateBase>();
+            ClassNameRegex = @"^[A-Za-z_]\w*$";
+            ModuleNameRegex = @"^[a-z_A-Z]\w*(\.[a-z_A-Z]\w*)*$";
         }
-        public string Path { get; private set; }
-        public Dictionary<string, BladeTemplateBase> InnerTemplates { get; set; }
+
+        public BladeTemplateSettings Settings { get; }
+        public List<BladeTemplateBase> InnerTemplates { get; }
         public BladeEngineBase Engine { get; private set; }
-        private string mainClassName;
+        protected string mainClassName;
+        public bool HasUserClassName { get; protected set; }
         public virtual void SetMainClassName(string value)
         {
-            mainClassName = value;
+            if (!string.IsNullOrEmpty(value))
+            {
+                if (Regex.Match(value, ClassNameRegex).Success)
+                {
+                    mainClassName = value;
+                    HasUserClassName = IsSomeString(value, rejectAllWhitespaceStrings: true);
+                }
+                else
+                {
+                    throw new BladeEngineInvalidClassNameException(value);
+                }
+            }
+            else
+            {
+                mainClassName = "";
+            }
         }
-        public virtual string GetMainClassName()
+        public virtual string GetMainClassName(bool autoGenerateModuleName = true)
         {
-            if (string.IsNullOrEmpty(mainClassName))
+            if (!IsSomeString(mainClassName, rejectAllWhitespaceStrings: true) && autoGenerateModuleName)
             {
                 mainClassName = $"BladeTemplate{Guid.NewGuid().ToString().Replace("-", "")}";
             }
 
             return mainClassName;
         }
-        private string moduleName;
+        public virtual string GetFullMainClassName()
+        {
+            return GetModuleName() + "." + GetMainClassName();
+        }
+        protected string moduleName;
         public virtual void SetModuleName(string value)
         {
-            moduleName = value;
+            if (IsSomeString(value, rejectAllWhitespaceStrings: true))
+            {
+                if (Regex.Match(value, ModuleNameRegex).Success)
+                {
+                    moduleName = value;
+                }
+                else
+                {
+                    throw new BladeEngineInvalidModuleNameException(value);
+                }
+            }
+            else
+            {
+                moduleName = "";
+            }
         }
-        public virtual string GetModuleName()
+        public virtual string GetModuleName(bool autoGenerateModuleName = true)
         {
+            if (!IsSomeString(moduleName, rejectAllWhitespaceStrings: true) && autoGenerateModuleName)
+            {
+                moduleName = $"Blade{Guid.NewGuid().ToString().Replace("-", "")}";
+            }
+
             return moduleName;
         }
         protected abstract string GetEngineName();
@@ -84,7 +135,7 @@ namespace BladeEngine.Core
     public abstract class BladeTemplateBase<T>: BladeTemplateBase
         where T: BladeEngineBase
     {
-        public BladeTemplateBase(T engine, string path): base(engine, path)
+        public BladeTemplateBase(T engine, BladeTemplateSettings settings = null) : base(engine, settings)
         { }
         public T StrongEngine
         {

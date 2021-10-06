@@ -6,7 +6,7 @@ namespace BladeEngine.Core.Utils
     {
         public static string Refine(string path, bool canSurpassRoot = true)
         {
-			path = path.Replace("\\", "/");
+			path = path?.Replace("\\", "/") ?? "";
 
 			var arr = path.Split(new char[] { '/' });
 			var s = new OpenStack<string>();
@@ -16,35 +16,49 @@ namespace BladeEngine.Core.Utils
 			{
 				if (p == "..")
 				{
-					var peek = s.Peek();
-
-					if (s.Count == 0 || peek == "..")
+					if (s.Count == 0)
 					{
-						s.Push(p);
-					}
-					else
-					{
-						if (string.IsNullOrEmpty(peek))
+						if (canSurpassRoot)
 						{
-							if (canSurpassRoot)
-							{
-								s.Pop();
-								s.Push(p);
-							}
-							else
-							{
-								throw new Exception("root surpassed");
-							}
+							s.Push(p);
 						}
 						else
 						{
-							if (peek.IndexOf(':') >= 0)
+							throw new Exception("root surpassed");
+						}
+					}
+					else
+					{
+						var peek = s.Peek();
+
+						if (peek == "..")
+						{
+							s.Push(p);
+						}
+						else
+						{
+							if (string.IsNullOrEmpty(peek))
 							{
-								throw new Exception("root surpassed");
+								if (canSurpassRoot)
+								{
+									s.Pop();
+									s.Push(p);
+								}
+								else
+								{
+									throw new Exception("root surpassed");
+								}
 							}
 							else
 							{
-								s.Pop();
+								if (peek.IndexOf(':') >= 0)
+								{
+									throw new Exception("root surpassed");
+								}
+								else
+								{
+									s.Pop();
+								}
 							}
 						}
 					}
@@ -60,7 +74,10 @@ namespace BladeEngine.Core.Utils
 					}
 					else if (p.Trim() != ".")
 					{
-						s.Push(p);
+						if (p != "~" || i != 0)
+						{
+							s.Push(p);
+						}
 					}
 				}
 

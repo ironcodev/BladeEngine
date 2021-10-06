@@ -60,38 +60,102 @@ namespace BladeEngine.Java
 
             return result;
         }
-        protected bool CompileInnerTemplates(string baseDir, BladeRunnerOptions options, BladeRunnerRunResult runnerResult, BladeTemplateBase template)
+        bool? CreatePackageDir(string baseDir, string package, BladeRunnerOptions options, BladeRunnerRunResult runnerResult)
+        {
+            bool? result = null;
+            Exception ex = null;
+            var dirs = package.Split('.', StringSplitOptions.RemoveEmptyEntries);
+            var _dir = baseDir;
+
+            foreach (var dir in dirs)
+            {
+                _dir = _dir + "\\" + dir;
+
+                if (!Directory.Exists(_dir))
+                {
+                    if (!Logger.Try($"\tCreating package dir '{_dir}' at '{baseDir}' ...", options.Debug, () =>
+                    {
+                        Directory.CreateDirectory(_dir);
+
+                        return true;
+                    }, out ex))
+                    {
+                        runnerResult.SetStatus("CreatePackageDirFailed");
+                        Logger.Abort($"\tCreating package dir '{_dir}' at '{baseDir}' failed. Executing template aborted", !options.Debug);
+                        result = false;
+                        break;
+                    }
+                }
+            }
+
+            if (ex != null)
+            {
+                runnerResult.Exception = ex;
+            }
+
+            return result;
+        }
+        protected bool CompileTemplateSingle(string baseDir, BladeRunnerOptions options, BladeRunnerRunResult runnerResult, BladeTemplateBase template)
         {
             bool? result = null;
             Exception ex = null;
 
-            if (template.InnerTemplates != null)
+            if (template != null)
             {
-                foreach (var item in template.InnerTemplates)
+                do
                 {
-                    var path = item.Key.Replace("\\", "/");
-                    var dirs = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-                    
-                    foreach (var dir in dirs)
+                    result = CreatePackageDir(baseDir, template.GetModuleName(), options, runnerResult);
+
+                    if (result.HasValue)
                     {
-                        if (dir != ".")
+                        break;
+                    }
+
+                    var tmpDir = $@"{baseDir}\{template.GetModuleName().Replace(".", "\\")}";
+                    var tmpFileJava = $@"{tmpDir}\{template.GetMainClassName()}.java";
+                    var tmpFileClass = $@"{tmpDir}\{template.GetMainClassName()}.class";
+                    var includeFileContent = $"package {template.GetModuleName()}" + Environment.NewLine + template.Render();
+                    var tmpFileHash = $@"{tmpDir}\{includeFileContent.ToMD5()}.hash";
+
+                    // Save include template and its hash
+
+                    if (!File.Exists(tmpFileJava) || !File.Exists(tmpFileHash))
+                    {
+                        if (!Logger.Try($"\tSaving template '{tmpFileJava}' ...", options.Debug, () =>
                         {
-                            var _dir = baseDir + "\\" + dir;
+                            File.WriteAllText(tmpFileJava, includeFileContent);
 
-                            if (!Directory.Exists(_dir))
+                            return true;
+                        }, out ex))
+                        {
+                            runnerResult.SetStatus("SavingTemplateFailed");
+                            Logger.Abort($"\tSaving template '{tmpFileJava}' failed. Executing template aborted", !options.Debug);
+                            result = false;
+                            break;
+                        }
+
+                        Logger.Try($"\tSaving template hash '{tmpFileHash}' ...", options.Debug, () =>
+                        {
+                            File.WriteAllText(tmpFileHash, "");
+
+                            return true;
+                        }, out ex);
+
+                        // we should delete old old compiled template so that it is compiled again
+
+                        if (File.Exists(tmpFileClass))
+                        {
+                            if (!Logger.Try($"\tDeleting old compiled template '{tmpFileClass}' ...", options.Debug, () =>
                             {
-                                if (!Logger.Try($"\tCreating include dir '" + _dir + "'", options.Debug, () =>
-                                {
-                                    Directory.CreateDirectory(_dir);
+                                File.Delete(tmpFileClass);
 
-                                    return true;
-                                }, out ex))
-                                {
-                                    runnerResult.SetStatus("CreateIncludeDirFailed");
-                                    Logger.Abort($"\tCreating include dir '{_dir}' failed. Executing template aborted", !options.Debug);
-                                    result = false;
-                                    break;
-                                }
+                                return true;
+                            }, out ex))
+                            {
+                                runnerResult.SetStatus("DeletingOldCompiledTemplateFailed");
+                                Logger.Abort($"\tDeleting old compiled template '{tmpFileClass}' failed. Executing template aborted", !options.Debug);
+                                result = false;
+                                break;
                             }
                         }
                     }
@@ -101,64 +165,24 @@ namespace BladeEngine.Java
                         break;
                     }
 
-                    var tmpFile = baseDir + "\\" + path + item.Value.GetMainClassName() + ".java";
-                    var includeFileContent = "package " + Environment.NewLine + item.Value.Render();
-                    var tmpFileHash = baseDir + "\\" + path + includeFileContent.ToMD5() + ".hash";
-
-                    // Save include template and its hash
-
-                    if (!File.Exists(tmpFile) || !File.Exists(tmpFileHash))
-                    {
-                        if (!Logger.Try($"\tSaving include template '{tmpFile}' ...", options.Debug, () =>
-                        {
-                            File.WriteAllText(tmpFile, includeFileContent);
-
-                            return true;
-                        }, out ex))
-                        {
-                            runnerResult.SetStatus("SavingIncludeTemplateFailed");
-                            Logger.Abort($"\tSaving include template '{tmpFile}' failed. Executing template aborted", !options.Debug);
-                            result = false;
-                            break;
-                        }
-
-                        Logger.Try($"\tSaving include template hash '{tmpFileHash}' ...", options.Debug, () =>
-                        {
-                            File.WriteAllText(tmpFileHash, "");
-
-                            return true;
-                        }, out ex);
-                    }
-
-                    if (result.HasValue)
-                    {
-                        break;
-                    }
-
                     // Compile include template
 
-                    if (!File.Exists(Path.Combine(Path.GetDirectoryName(tmpFile), Path.GetFileName(tmpFile) + ".class")))
+                    if (!File.Exists(tmpFileClass))
                     {
                         if (!ShellExecute(options: options,
-                                        message: $"\tCompiling include template {tmpFile} ...",
-                                        errorMessage: "\tCompiling include template failed",
+                                        message: $"\tCompiling template {tmpFileJava} ...",
+                                        errorMessage: "\tCompiling template failed",
                                         filename: "javac.exe",
                                         onExecute: sr => sr.IsSucceeded(@"^\s*$", true, true),
-                                        args: $"-cp \".;{Engine.StrongConfig.ClassPath}\" {Path.GetFileName(tmpFile)}",
-                                        workingDirectory: Path.GetDirectoryName(tmpFile),
+                                        args: $"-cp \".;{AppPath.ProgramDir};{Engine.StrongConfig.ClassPath?.Join(";")}\" {Path.GetFileName(tmpFileJava)}",
+                                        workingDirectory: Path.GetDirectoryName(tmpFileJava),
                                         throwErrors: true))
                         {
-                            runnerResult.SetStatus("CompilingIncludeTemplateFailed");
+                            runnerResult.SetStatus("CompilingTemplateFailed");
                             break;
                         }
                     }
-
-                    if (!CompileInnerTemplates(baseDir, options, runnerResult, item.Value))
-                    {
-                        result = false;
-                        break;
-                    }
-                }
+                } while (false);
             }
 
             if (!result.HasValue)
@@ -172,6 +196,28 @@ namespace BladeEngine.Java
             }
 
             return result.Value;
+        }
+        protected bool CompileTemplate(string baseDir, BladeRunnerOptions options, BladeRunnerRunResult runnerResult, BladeTemplateBase template)
+        {
+            var result = CompileTemplateSingle(baseDir, options, runnerResult, template);
+
+            if (result)
+            {
+                if (template?.InnerTemplates != null && template.InnerTemplates.Count > 0)
+                {
+                    foreach (var item in template.InnerTemplates)
+                    {
+                        result = CompileTemplateSingle(baseDir, options, runnerResult, item);
+
+                        if (!result)
+                        {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return result;
         }
         protected override bool Execute(BladeRunnerOptions options, BladeRunnerRunResult runnerResult, out string result)
         {
@@ -228,7 +274,7 @@ namespace BladeEngine.Java
 
                 if (!Directory.Exists(options.CacheDir))
                 {
-                    if (!Logger.Try($"STEP 2. Creating cache directory at '" + options.CacheDir + "'", options.Debug, () =>
+                    if (!Logger.Try($"STEP 2. Creating cache directory '{options.CacheDir}' ...", options.Debug, () =>
                     {
                         Directory.CreateDirectory(options.CacheDir);
 
@@ -236,7 +282,7 @@ namespace BladeEngine.Java
                     }, out ex))
                     {
                         runnerResult.SetStatus("CreateCacheDirFailed");
-                        Logger.Abort($"Creating cache directory at '{options.CacheDir}' failed. Executing template aborted", !options.Debug);
+                        Logger.Abort($"Creating cache directory '{options.CacheDir}' failed. Executing template aborted", !options.Debug);
                         break;
                     }
                 }
@@ -247,7 +293,7 @@ namespace BladeEngine.Java
 
                 if (!Directory.Exists(tmpDir))
                 {
-                    if (!Logger.Try($"STEP 3. Creating directory for template execution at '" + tmpDir + "'", options.Debug, () =>
+                    if (!Logger.Try($"STEP 3. Creating directory for template execution '{tmpDir}'", options.Debug, () =>
                     {
                         Directory.CreateDirectory(tmpDir);
 
@@ -255,83 +301,31 @@ namespace BladeEngine.Java
                     }, out ex))
                     {
                         runnerResult.SetStatus("CreateTemplateDirFailed");
-                        Logger.Abort($"Creating template directory at {tmpDir} failed. Executing template aborted", !options.Debug);
+                        Logger.Abort($"Creating template directory '{tmpDir}' failed. Executing template aborted", !options.Debug);
                         break;
                     }
                 }
+                
+                // STEP 4. Compile rendered template
 
-                // STEP 4. Create package dir
-
-                var tmpPackage = tmpDir + "\\" + Engine.StrongConfig.Package;
-
-                if (!Directory.Exists(tmpPackage))
+                if (!CompileTemplate(tmpDir, options, runnerResult, runnerResult.Template))
                 {
-                    if (!Logger.Try($"STEP 4. Creating package dir {tmpPackage} ...", options.Debug, () =>
-                    {
-                        Directory.CreateDirectory(tmpPackage);
-
-                        return true;
-                    }, out ex))
-                    {
-                        runnerResult.SetStatus("CreatePackageDirFailed");
-                        Logger.Abort($"Creating package dir {tmpPackage} failed. Executing template aborted", !options.Debug);
-                        break;
-                    }
+                    break;
                 }
 
-                var classPath = $".;{Engine.StrongConfig.ClassPath}";
-
-                // STEP 5. Saving rendered template at tmpDir
-
-                var tmpFile = tmpPackage + "\\" + runnerResult.Template.GetMainClassName() + ".java";
-
-                if (!File.Exists(tmpFile))
-                {
-                    if (!Logger.Try($"STEP 5. Saving rendered template '{tmpFile}' ...", options.Debug, () =>
-                    {
-                        File.WriteAllText(tmpFile, runnerResult.RenderedTemplate);
-
-                        return true;
-                    }, out ex))
-                    {
-                        runnerResult.SetStatus("SavingRenderedTemplateFailed");
-                        Logger.Abort($"Saving rendered template '{tmpFile}' failed. Executing template aborted", !options.Debug);
-                        break;
-                    }
-                }
-
-                // STEP 6. Compile rendered template
-
-                if (!File.Exists(Path.Combine(Path.GetDirectoryName(tmpFile), Path.GetFileName(tmpFile) + ".class")))
-                {
-                    if (!ShellExecute(options: options,
-                                    message: $"STEP 7. Compiling template {Path.GetFileName(tmpFile)} ...",
-                                    errorMessage: "Compiling template failed",
-                                    filename: "javac.exe",
-                                    onExecute: sr => sr.IsSucceeded(@"^\s*$", true, true),
-                                    args: $"-cp \"{classPath}\" {Path.GetFileName(tmpFile)}",
-                                    workingDirectory: tmpPackage,
-                                    throwErrors: true))
-                    {
-                        runnerResult.SetStatus("CompilingRenderedTemplateFailed");
-                        break;
-                    }
-                }
-
-                CompileInnerTemplates(Path.GetDirectoryName(tmpFile), options, runnerResult, runnerResult.Template);
-
-                // STEP 7. Create and save a runner program to run rendered template at tmpDir
+                // STEP 5. Create and save a runner program to run rendered template at tmpDir
 
                 var tmpProgram = $"{tmpDir}\\Program.java";
 
                 if (!File.Exists(tmpProgram))
                 {
+                    var mainClass = runnerResult.Template.GetFullMainClassName();
                     var program = $@"
-import {Engine.StrongConfig.Package}.{runnerResult.Template.GetMainClassName()};
+import {mainClass};
 
 public class Program {{
     public static void main(String[] args) {{
-        {runnerResult.Template.GetMainClassName()} t = new {runnerResult.Template.GetMainClassName()}();
+        {mainClass} t = new {mainClass}();
 
         System.out.println(t.render());
     }}
@@ -350,7 +344,7 @@ public class Program {{
                     }
                 }
 
-                // STEP 8. Compile runner
+                // STEP 6. Compile runner
                 if (!File.Exists(Path.Combine(Path.GetDirectoryName(tmpProgram), Path.GetFileName(tmpProgram) + ".class")))
                 {
                     if (!ShellExecute(options: options,
@@ -358,7 +352,7 @@ public class Program {{
                                 errorMessage: "Compiling template runner failed",
                                 filename: "javac.exe",
                                 onExecute: sr => sr.IsSucceeded(@"^\s*$", true, true),
-                                args: $"-cp \"{classPath}\" {Path.GetFileName(tmpProgram)}",
+                                args: $"-cp \".;{AppPath.ProgramDir};{Engine.StrongConfig.ClassPath?.Join(";")}\" {Path.GetFileName(tmpProgram)}",
                                 workingDirectory: tmpDir,
                                 throwErrors: true))
                     {
@@ -367,7 +361,7 @@ public class Program {{
                     }
                 }
 
-                // STEP 9. Execute runner
+                // STEP 7. Execute runner
                 var shellOutput = "";
 
                 if (!ShellExecute(options: options,
@@ -380,7 +374,7 @@ public class Program {{
 
                                     return sr.Succeeded;
                                 },
-                                args: $"-cp \"{classPath}\" {Path.GetFileNameWithoutExtension(tmpProgram)}",
+                                args: $"-cp \".;{AppPath.ProgramDir};{Engine.StrongConfig.ClassPath?.Join(";")}\" {Path.GetFileNameWithoutExtension(tmpProgram)}",
                                 workingDirectory: tmpDir,
                                 throwErrors: true))
                 {

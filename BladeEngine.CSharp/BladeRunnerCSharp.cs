@@ -10,12 +10,10 @@ using System.Security.Cryptography;
 using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.Emit;
 using Newtonsoft.Json;
 using BladeEngine.Core;
 using BladeEngine.Core.Exceptions;
 using static BladeEngine.Core.Utils.LanguageConstructs;
-using BladeEngine.Core.Utils;
 using BladeEngine.Core.Utils.Logging;
 using Newtonsoft.Json.Linq;
 
@@ -37,7 +35,7 @@ namespace BladeEngine.CSharp
                 {
                     var obj = (JObject)JsonConvert.DeserializeObject(options.GivenModel);
 
-                    if (IsSomeString(Engine.StrongConfig.StrongModelType))
+                    if (IsSomeString(Engine.StrongConfig.StrongModelType, true))
                     {
                         try
                         {
@@ -46,7 +44,7 @@ namespace BladeEngine.CSharp
                         }
                         catch (Exception e)
                         {
-                            runnerResult.TrySetStatus("StrongifyDeserializeModelFailed");
+                            runnerResult.TrySetStatus("MappingModelTypeFailed");
                             runnerResult.Exception = new BladeEngineException($"Converting deserialized model to '{Engine.StrongConfig.StrongModelType}' failed.", e);
                         }
                     }
@@ -79,7 +77,7 @@ namespace BladeEngine.CSharp
 
             if (!Directory.Exists(options.CacheDir))
             {
-                Logger.Try($"Creating cache directory at '" + options.CacheDir, options.Debug, () => Directory.CreateDirectory(options.CacheDir));
+                Logger.Try($"Creating cache directory '{options.CacheDir}' ...", options.Debug, () => Directory.CreateDirectory(options.CacheDir));
             }
 
             var existingCompiledAssembly = Path.Combine(options.CacheDir, md5 + ".dll");
@@ -93,11 +91,9 @@ namespace BladeEngine.CSharp
             }
 
             var refPaths = new List<string> {
-                    typeof(System.Object).GetTypeInfo().Assembly.Location,
-                    typeof(Console).GetTypeInfo().Assembly.Location,
+                    typeof(object).GetTypeInfo().Assembly.Location,
                     typeof(DynamicAttribute).GetTypeInfo().Assembly.Location,           // required due to the use of 'dynamic' in Render() method that BladeTemplateCSharp generates
                     typeof(WebUtility).GetTypeInfo().Assembly.Location,                 // used in the class that BladeTemplateCSharp generates
-                    typeof(StringBuilder).GetTypeInfo().Assembly.Location,              //      "                   "                   "
                     typeof(MD5CryptoServiceProvider).GetTypeInfo().Assembly.Location,   //      "                   "                   "
                     typeof(MD5).GetTypeInfo().Assembly.Location,                        //      "                   "                   "
                     typeof(HashAlgorithm).GetTypeInfo().Assembly.Location,              //      "                   "                   "
@@ -154,7 +150,7 @@ namespace BladeEngine.CSharp
                     Logger.Log(Environment.NewLine + "Compiling ...");
                 }
 
-                CSharpCompilation compilation = CSharpCompilation.Create(
+                var compilation = CSharpCompilation.Create(
                     assemblyName,
                     syntaxTrees: new[] { syntaxTree },
                     references: references,
@@ -162,15 +158,13 @@ namespace BladeEngine.CSharp
 
                 using (var ms = new MemoryStream())
                 {
-                    EmitResult er = compilation.Emit(ms);
+                    var er = compilation.Emit(ms);
 
                     if (!er.Success)
                     {
                         Logger.Danger("Failed!" + Environment.NewLine);
 
-                        IEnumerable<Diagnostic> failures = er.Diagnostics.Where(diagnostic =>
-                            diagnostic.IsWarningAsError ||
-                            diagnostic.Severity == DiagnosticSeverity.Error);
+                        var failures = er.Diagnostics.Where(diagnostic => diagnostic.IsWarningAsError || diagnostic.Severity == DiagnosticSeverity.Error);
 
                         foreach (Diagnostic diagnostic in failures)
                         {
@@ -209,13 +203,51 @@ namespace BladeEngine.CSharp
 
             modelType = null;
 
-            foreach (var reference in refPaths)
+            if (Engine.StrongConfig.UseStrongModel)
             {
-                var asm = Assembly.LoadFrom(reference);
-
-                if (IsSomeString(Engine.StrongConfig.StrongModelType) && modelType == null)
+                if (IsSomeString(Engine.StrongConfig.StrongModelType, true))
                 {
-                    modelType = asm.GetType(Engine.StrongConfig.StrongModelType);
+                    foreach (var reference in refPaths)
+                    {
+                        try
+                        {
+                            var asm = Assembly.LoadFrom(reference);
+
+                            if (IsSomeString(Engine.StrongConfig.StrongModelType, true) && modelType == null)
+                            {
+                                modelType = asm.GetType(Engine.StrongConfig.StrongModelType);
+
+                                if (modelType != null)
+                                {
+                                    break;
+                                }
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            if (options.Debug)
+                            {
+                                Logger.Log($"Loading assembly {reference} failed.{Environment.NewLine + "\t"}{e.ToString("\t" + Environment.NewLine)}");
+                            }
+                        }
+                    }
+
+                    if (modelType == null)
+                    {
+                        result = null;
+
+                        runnerResult.SetStatus("ModelTypeNotFound");
+
+                        throw new BladeEngineException($"Model type '{Engine.StrongConfig.StrongModelType}' was not found in references");
+                    }
+                }
+                else
+                {
+                    result = null;
+
+                    runnerResult.SetStatus("ModelTypeNotSpecified");
+
+                    throw new BladeEngineException($"'UseStrongModel' is requested, but no strong model type is specified");
                 }
             }
 
@@ -231,14 +263,13 @@ namespace BladeEngine.CSharp
             }
             else
             {
-                Type modelType;
-                object model;
-                var assembly = CompileOrLoadAssembly(options, runnerResult, out modelType);
-                if (GetModel(options, runnerResult, modelType, out model))
+                var assembly = CompileOrLoadAssembly(options, runnerResult, out Type modelType);
+
+                if (assembly != null)
                 {
-                    if (assembly != null)
+                    if (GetModel(options, runnerResult, modelType, out object model))
                     {
-                        var templateMainClass = Engine.StrongConfig.Namespace + "." + runnerResult.Template.GetMainClassName();
+                        var templateMainClass = runnerResult.Template.GetFullMainClassName(); // Engine.StrongConfig.Namespace + "." + runnerResult.Template.GetMainClassName();
                         var templateType = assembly.GetType(templateMainClass);
 
                         if (templateType != null)

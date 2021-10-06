@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Text;
 using BladeEngine.Core;
+using BladeEngine.Core.Utils;
 using static BladeEngine.Core.Utils.LanguageConstructs;
 
 namespace BladeEngine.Java
@@ -30,9 +31,9 @@ namespace BladeEngine.Java
 
             return result.ToString();
         }
-        protected override BladeTemplateBase CreateTemplate(string path)
+        protected override BladeTemplateBase CreateTemplate(BladeTemplateSettings settings)
         {
-            return new BladeTemplateJava(this, path);
+            return new BladeTemplateJava(this, settings);
         }
         protected override string WriteValue(string str)
         {
@@ -43,19 +44,11 @@ namespace BladeEngine.Java
             return MergeDependencies(currentDependencies, newDependencies, "import", ";");
         }
 
-        protected override void OnIncludeTemplate(BladeTemplateBase current, BladeTemplateBase include)
+        protected override bool OnIncludeTemplate(CharReader reader, BladeTemplateBase current, BladeTemplateBase include)
         {
-            var includePackage = "";
+            current.Dependencies += Environment.NewLine + $"import {include.GetFullMainClassName()};";
 
-            if (include.Path.StartsWith(".."))
-            includePackage = include.Path.Substring(current.Path.Length).Replace("/", ".").Replace("\\", ".");
-
-            if (includePackage.StartsWith("."))
-            {
-                includePackage = includePackage.Substring(1);
-            }
-
-            current.Dependencies += Environment.NewLine + "import " + includePackage + "." + include.GetMainClassName() + ";";
+            return true;
         }
     }
 }

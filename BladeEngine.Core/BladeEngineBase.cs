@@ -77,12 +77,8 @@ namespace BladeEngine.Core
             return final;
         }
         protected abstract string MergeDependencies(string currentDependencies, string newDependencies);
-        protected virtual string MergeExternalCode(string currentExternalCodes, string newExternalCodes)
-        {
-            return currentExternalCodes + Environment.NewLine + newExternalCodes;
-        }
-        protected abstract void OnIncludeTemplate(BladeTemplateBase current, BladeTemplateBase include);
-        protected abstract BladeTemplateBase CreateTemplate(string path);
+        protected abstract bool OnIncludeTemplate(CharReader reader, BladeTemplateBase current, BladeTemplateBase include);
+        protected abstract BladeTemplateBase CreateTemplate(BladeTemplateSettings settings);
         #region Encode/Decode
         protected virtual string HtmlEncode(string s)
         {
@@ -129,9 +125,9 @@ namespace BladeEngine.Core
 
             return templateResult.EngineName;
         }
-        public virtual BladeTemplateBase Parse(string template, string path = ".")
+        public virtual BladeTemplateBase Parse(string template, BladeTemplateSettings settings = null)
         {
-            var result = CreateTemplate(path);
+            var result = CreateTemplate(settings);
             var reader = new CharReader(template);
             var body = new StringBuilder();
             var functions = new StringBuilder();
@@ -562,13 +558,46 @@ namespace BladeEngine.Core
                                 throw new BladeEngineIncludePathEmptyException(reader.Row, reader.Col);
                             }
 
-                            var includeTemplatePath = includePath[0] == '/' || includePath[0] == '\\' ? PathHelper.Refine(includePath) : PathHelper.Refine(result.Path + "/" + includePath);
-                            var finalPath = Path.Combine(Environment.CurrentDirectory, includeTemplatePath);
+                            if (Path.IsPathRooted(includePath) && !(includePath[0] == '/' || includePath[0] == '\\'))
+                            {
+                                throw new BladeEngineRootedIncludeFilePreventedException(reader.Row, reader.Col, includePath);
+                            }
+
+                            var includeTemplatePath = "";
+
+                            if (includePath[0] == '/' || includePath[0] == '\\')
+                            {
+                                includeTemplatePath = PathHelper.Refine("." + includePath);
+                            }
+                            else if (includePath[0] != '~')
+                            {
+                                includeTemplatePath = PathHelper.Refine(result.Settings.Path + "/" + includePath);
+                            }
+                            else
+                            {
+                                if (includePath.Length > 1)
+                                {
+                                    if (includePath[1] == '/' || includePath[1] == '\\')
+                                    {
+                                        includeTemplatePath = PathHelper.Refine("." + includePath.Substring(1));
+                                    }
+                                    else
+                                    {
+                                        includeTemplatePath = PathHelper.Refine(includePath.Substring(1));
+                                    }
+                                }
+                                else
+                                {
+                                    includeTemplatePath = ".";
+                                }
+                            }
+
+                            var finalPath = includePath[0] == '~' ? Path.Combine(AppPath.ProgramDir + "/" + result.EngineName, includeTemplatePath): Path.Combine(Environment.CurrentDirectory, includeTemplatePath);
                             var fileExists = false;
 
                             try
                             {
-                                finalPath = PathHelper.Refine(finalPath);
+                                finalPath = PathHelper.Refine(finalPath, false);
                             }
                             catch (Exception)
                             {
@@ -589,13 +618,7 @@ namespace BladeEngine.Core
                                     }
                                     else
                                     {
-                                        var lastSlash = finalPath.LastIndexOf('/');
-                                        var lastDot = finalPath.LastIndexOf('.');
-
-                                        if (lastSlash >= 0 && lastDot < lastSlash)
-                                        {
-                                            finalPath = finalPath + ".blade";
-                                        }
+                                        finalPath += ".blade";
                                     }
                                 }
                                 else
@@ -608,13 +631,26 @@ namespace BladeEngine.Core
                             {
                                 throw new BladeIncludeFileNotFoundException(reader.Row, reader.Col, finalPath);
                             }
-
+                            var _settings = new BladeTemplateSettings
+                            {
+                                Path = includeTemplatePath,
+                                AbsolutePath = Path.GetDirectoryName(finalPath),
+                                IsLocal = includePath[0] != '~',
+                                IsInclude = true
+                            };
                             var content = Try(() => File.ReadAllText(finalPath), e => new BladeEngineIncludeFileReadException(reader.Row, reader.Col, finalPath, e));
-                            var itr = Try(() => Parse(content, includeTemplatePath), e => new BladeEngineIncludeFileParseException(reader.Row, reader.Col, finalPath, e));
+                            var itr = Try(() => Parse(content, _settings), e => new BladeEngineIncludeFileParseException(reader.Row, reader.Col, finalPath, e));
+                            var fullClassName = itr.GetFullMainClassName();
 
-                            result.InnerTemplates.Add(includeTemplatePath, itr);
-                            
-                            OnIncludeTemplate(result, itr);
+                            if (ClassExists(result, fullClassName))
+                            {
+                                throw new BladeEngineClassAlreadyIncludedException(reader.Row, reader.Col, fullClassName);
+                            }
+
+                            if (OnIncludeTemplate(reader, result, itr))
+                            {
+                                result.InnerTemplates.Add(itr);
+                            }
 
                             state = BladeTemplateParseState.Start;
                         }
@@ -1308,6 +1344,33 @@ namespace BladeEngine.Core
 
             result.Functions = functions.ToString();
             result.Body = body.ToString();
+
+            return result;
+        }
+        protected virtual bool ClassExists(BladeTemplateBase template, string fullClassName)
+        {
+            var result = false;
+
+            if (template.InnerTemplates != null)
+            {
+                foreach (var innerTemplate in template.InnerTemplates)
+                {
+                    if (string.Compare(innerTemplate.GetFullMainClassName(), fullClassName, false) == 0)
+                    {
+                        result = true;
+                        break;
+                    }
+
+                    if (innerTemplate.InnerTemplates?.Count > 0)
+                    {
+                        if (ClassExists(innerTemplate, fullClassName))
+                        {
+                            result = true;
+                            break;
+                        }
+                    }
+                }
+            }
 
             return result;
         }

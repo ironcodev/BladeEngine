@@ -12,7 +12,7 @@ namespace BladeEngine.CLI
 {
     class Program
     {
-        static string Version => "1.0.0";
+        static string Version => "1.0.1";
         static ILogger logger => new ConsoleLogger();
         static void Help()
         {
@@ -42,11 +42,11 @@ options:
 example:
     blade -e csharp -i my-template.blade
     blade -e csharp -i my-template.blade -o my-template.cs
-    blade -e csharp -i my-template.blade -c ""{{ 'NameSpace': 'MyNS' }}""
+    blade -e csharp -i my-template.blade -c ""{{ 'UseStrongModel': true, 'StrongModelType': 'Dictionary<string, object>' }}""
     blade runner -e csharp -i my-template.blade -m ""{{ 'name': 'John Doe' }}""
 ");
         }
-        static string GetAssemblyPath(string arg)
+        static string GetEngineAssemblyPath(string arg)
         {
             string result;
 
@@ -110,7 +110,7 @@ example:
                         }
                         else
                         {
-                            runner = logger.Try($"Instantiating runner ...", options.Debug, () => (BladeRunner)Activator.CreateInstance(runnerType, logger, options));
+                            runner = logger.Try($"Instantiating runner ...", options.Debug, () => (BladeRunner)Activator.CreateInstance(runnerType, logger));
 
                             if (runner == null)
                             {
@@ -276,7 +276,7 @@ example:
                 {
                     if (i < args.Length - 1)
                     {
-                        var path = GetAssemblyPath(args[i + 1]);
+                        var path = GetEngineAssemblyPath(args[i + 1]);
 
                         if (IsSomeString(path))
                         {

@@ -5,11 +5,11 @@ namespace BladeEngine.Core.Utils
 {
     public static class LanguageConstructs
     {
-        public static bool IsSomeString(string s, bool alsoRejectAllWhitespaceStrings = false)
+        public static bool IsSomeString(string s, bool rejectAllWhitespaceStrings = false)
         {
             if (!string.IsNullOrEmpty(s))
             {
-                return !alsoRejectAllWhitespaceStrings || s.ToCharArray().Any(ch => !char.IsWhiteSpace(ch));
+                return !rejectAllWhitespaceStrings || s.ToCharArray().Any(ch => !char.IsWhiteSpace(ch));
             }
 
             return false;
