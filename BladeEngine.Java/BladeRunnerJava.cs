@@ -28,7 +28,7 @@ namespace BladeEngine.Java
                     {
                         if (throwErrors)
                         {
-                            throw new BladeEngineException($"shell executing '{filename} {args}' failed", sr.Exception);
+                            throw new BladeEngineException($"shell executing '{filename} {args}' failed{Environment.NewLine}{sr.Errors}", sr.Exception);
                         }
                         else
                         {
@@ -114,7 +114,7 @@ namespace BladeEngine.Java
                     var tmpDir = $@"{baseDir}\{template.GetModuleName().Replace(".", "\\")}";
                     var tmpFileJava = $@"{tmpDir}\{template.GetMainClassName()}.java";
                     var tmpFileClass = $@"{tmpDir}\{template.GetMainClassName()}.class";
-                    var includeFileContent = $"package {template.GetModuleName()}" + Environment.NewLine + template.Render();
+                    var includeFileContent = $"package {template.GetModuleName()};" + Environment.NewLine + template.Render();
                     var tmpFileHash = $@"{tmpDir}\{includeFileContent.ToMD5()}.hash";
 
                     // Save include template and its hash
@@ -174,11 +174,12 @@ namespace BladeEngine.Java
                                         errorMessage: "\tCompiling template failed",
                                         filename: "javac.exe",
                                         onExecute: sr => sr.IsSucceeded(@"^\s*$", true, true),
-                                        args: $"-cp \".;{AppPath.ProgramDir};{Engine.StrongConfig.ClassPath?.Join(";")}\" {Path.GetFileName(tmpFileJava)}",
+                                        args: $"-cp \".;{AppPath.ProgramDir}\\java;{Engine.StrongConfig.ClassPath?.Join(";")}\" {Path.GetFileName(tmpFileJava)}",
                                         workingDirectory: Path.GetDirectoryName(tmpFileJava),
                                         throwErrors: true))
                         {
                             runnerResult.SetStatus("CompilingTemplateFailed");
+                            result = false;
                             break;
                         }
                     }
@@ -319,9 +320,10 @@ namespace BladeEngine.Java
 
                 if (!File.Exists(tmpProgram))
                 {
-                    var mainClass = runnerResult.Template.GetFullMainClassName();
+                    var fullMainClass = runnerResult.Template.GetFullMainClassName();
+                    var mainClass = runnerResult.Template.GetMainClassName();
                     var program = $@"
-import {mainClass};
+import {fullMainClass};
 
 public class Program {{
     public static void main(String[] args) {{
@@ -352,7 +354,7 @@ public class Program {{
                                 errorMessage: "Compiling template runner failed",
                                 filename: "javac.exe",
                                 onExecute: sr => sr.IsSucceeded(@"^\s*$", true, true),
-                                args: $"-cp \".;{AppPath.ProgramDir};{Engine.StrongConfig.ClassPath?.Join(";")}\" {Path.GetFileName(tmpProgram)}",
+                                args: $"-cp \".;{AppPath.ProgramDir}\\java;{Engine.StrongConfig.ClassPath?.Join(";")}\" {Path.GetFileName(tmpProgram)}",
                                 workingDirectory: tmpDir,
                                 throwErrors: true))
                     {
@@ -374,7 +376,7 @@ public class Program {{
 
                                     return sr.Succeeded;
                                 },
-                                args: $"-cp \".;{AppPath.ProgramDir};{Engine.StrongConfig.ClassPath?.Join(";")}\" {Path.GetFileNameWithoutExtension(tmpProgram)}",
+                                args: $"-cp \".;{AppPath.ProgramDir}\\java;{Engine.StrongConfig.ClassPath?.Join(";")}\" {Path.GetFileNameWithoutExtension(tmpProgram)}",
                                 workingDirectory: tmpDir,
                                 throwErrors: true))
                 {

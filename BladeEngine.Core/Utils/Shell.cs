@@ -42,79 +42,83 @@ namespace BladeEngine.Core.Utils
                     break;
                 }
 
-                var process = new Process();
-
-                process.StartInfo.FileName = request.FileName;
-
-                if (IsSomeString(request.Args, true))
+                using (var process = new Process())
                 {
-                    process.StartInfo.Arguments = request.Args;
-                }
+                    process.StartInfo.FileName = request.FileName;
 
-                if (IsSomeString(request.WorkingDirectory, true))
-                {
-                    process.StartInfo.WorkingDirectory = request.WorkingDirectory;
-                }
-
-                process.StartInfo.CreateNoWindow = true;
-
-                if (request.WindowStyle.HasValue)
-                {
-                    process.StartInfo.WindowStyle = request.WindowStyle.Value;
-                }
-                else
-                {
-                    process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                }
-
-                process.StartInfo.UseShellExecute = false;
-                process.StartInfo.RedirectStandardError = true;
-                process.StartInfo.RedirectStandardOutput = true;
-
-                var stdOutput = new StringBuilder();
-
-                process.OutputDataReceived += (sender, args) => stdOutput.AppendLine(args.Data);
-
-                string stdError = null;
-
-                try
-                {
-                    process.Start();
-                    process.BeginOutputReadLine();
-                    stdError = process.StandardError.ReadToEnd();
-                    process.WaitForExit();
-                }
-                catch (Exception e)
-                {
-                    response.Exception = e;
-                    response.Status = "Failed";
-                }
-
-                try
-                {
-                    response.ExitCode = process.ExitCode;
-                    response.Succeeded = true;
-                    response.Status = "Succeeded";
-                }
-                catch { }
-
-                if (response.ExitCode.HasValue)
-                {
-                    if (IsSomeString(stdError, true))
+                    if (IsSomeString(request.Args, true))
                     {
-                        response.Errors = stdError;
+                        process.StartInfo.Arguments = request.Args;
                     }
 
-                    if (IsSomeString(stdOutput.ToString(), true))
+                    if (IsSomeString(request.WorkingDirectory, true))
                     {
-                        response.Output = stdOutput.ToString();
+                        process.StartInfo.WorkingDirectory = request.WorkingDirectory;
                     }
-                }
-                else
-                {
-                    if (string.IsNullOrEmpty(response.Status))
+
+                    process.StartInfo.CreateNoWindow = true;
+
+                    if (request.WindowStyle.HasValue)
                     {
-                        response.Status = "Errored";
+                        process.StartInfo.WindowStyle = request.WindowStyle.Value;
+                    }
+                    else
+                    {
+                        process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                    }
+
+                    process.StartInfo.UseShellExecute = false;
+                    process.StartInfo.RedirectStandardError = true;
+                    process.StartInfo.RedirectStandardOutput = true;
+
+                    var stdOutput = new StringBuilder();
+
+                    process.OutputDataReceived += (sender, args) =>
+                    {
+                        stdOutput.AppendLine(args.Data);
+                    };
+
+                    string stdError = null;
+
+                    try
+                    {
+                        process.Start();
+                        process.BeginOutputReadLine();
+                        stdError = process.StandardError.ReadToEnd();
+                        process.WaitForExit();
+                    }
+                    catch (Exception e)
+                    {
+                        response.Exception = e;
+                        response.Status = "Failed";
+                    }
+
+                    try
+                    {
+                        response.ExitCode = process.ExitCode;
+                        response.Succeeded = true;
+                        response.Status = "Succeeded";
+                    }
+                    catch { }
+
+                    if (response.ExitCode.HasValue)
+                    {
+                        if (IsSomeString(stdError, true))
+                        {
+                            response.Errors = stdError;
+                        }
+
+                        if (IsSomeString(stdOutput.ToString(), true))
+                        {
+                            response.Output = stdOutput.ToString();
+                        }
+                    }
+                    else
+                    {
+                        if (string.IsNullOrEmpty(response.Status))
+                        {
+                            response.Status = "Errored";
+                        }
                     }
                 }
             } while (false);

@@ -874,7 +874,7 @@ namespace BladeEngine.Core
                     case BladeTemplateParseState.ModuleNameStart:
                         if (ch == '`')
                         {
-                            state = BladeTemplateParseState.TemplateNameEnding;
+                            state = BladeTemplateParseState.ModuleNameEnding;
                         }
                         else if (Char.IsLetterOrDigit(ch) || ch == '_' || ch == '.')
                         {
@@ -889,11 +889,11 @@ namespace BladeEngine.Core
                     case BladeTemplateParseState.ModuleNameEnding:
                         if (ch == '%')
                         {
-                            state = BladeTemplateParseState.TemplateNameEnd;
+                            state = BladeTemplateParseState.ModuleNameEnd;
                         }
                         else
                         {
-                            throwBladeEngineInvalidCharacterException("ModuleeNameEndTagError", "%");
+                            throwBladeEngineInvalidCharacterException("ModuleNameEndTagError", "%");
                         }
 
                         break;
@@ -911,7 +911,7 @@ namespace BladeEngine.Core
                         }
                         else
                         {
-                            throwBladeEngineInvalidCharacterException("ModuleeNameEndTagError", ">");
+                            throwBladeEngineInvalidCharacterException("ModuleNameEndTagError", ">");
                         }
 
                         break;
