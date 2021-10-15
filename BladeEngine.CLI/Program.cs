@@ -66,26 +66,12 @@ example:
                     break;
                 }
 
-                result = Path.Combine(Environment.CurrentDirectory, ".\\" + arg + ".dll");
-
-                if (File.Exists(result))
-                {
-                    break;
-                }
-
-                result = Path.Combine(AppPath.ExecDir, ".\\" + arg + ".dll");
-
-                if (File.Exists(result))
-                {
-                    break;
-                }
-
                 result = null;
             } while (false);
 
             return result;
         }
-        static bool CreateRunner(BladeRunnerOptions options, out BladeRunner runner)
+        static bool CreateRunner(BladeCLIOptions options, out BladeRunner runner)
         {
             var result = false;
 
@@ -95,42 +81,37 @@ example:
             {
                 // STEP 2. Validate Egnine and extract its runner
 
-                if (IsSomeString(options.EngineLibraryPath))
-                {
-                    var assembly = logger.Try($"Loading Engine assembly '{options.EngineLibraryPath}' ...", options.Debug, () => Assembly.LoadFrom(options.EngineLibraryPath));
-
-                    if (assembly != null)
-                    {
-                        var runnerType = logger.Try($"Finding runner ...", options.Debug, () => assembly.GetTypes().FirstOrDefault(t => t.DescendsFrom(typeof(BladeRunner))));
-
-                        if (runnerType == null)
-                        {
-                            logger.Log($"Could not find a runner in '{options.EngineName}' engine assembly that is derived from BladeRunner base class.");
-                            break;
-                        }
-                        else
-                        {
-                            runner = logger.Try($"Instantiating runner ...", options.Debug, () => (BladeRunner)Activator.CreateInstance(runnerType, logger));
-
-                            if (runner == null)
-                            {
-                                logger.Abort($"Instantiating '{options.EngineName}' runner failed", !options.Debug);
-                                break;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        logger.Abort($"Loading '{options.EngineName}' engine assembly failed", !options.Debug);
-                    }
-                }
-                else
+                if (!IsSomeString(options.EngineLibraryPath))
                 {
                     logger.Log("No engine specified or specified engine is invalid.");
                     break;
                 }
 
-                options.DefaultOutputExtensions = runner.EngineConfig.FileExtension;
+                var assembly = logger.Try($"Loading Engine assembly '{options.EngineLibraryPath}' ...", options.Debug, () => Assembly.LoadFrom(options.EngineLibraryPath));
+
+                if (assembly == null)
+                {
+                    logger.Abort($"Loading '{options.EngineName}' engine assembly failed", !options.Debug);
+                    break;
+                }
+
+                var runnerType = logger.Try($"Finding runner ...", options.Debug, () => assembly.GetTypes().FirstOrDefault(t => t.DescendsFrom(typeof(BladeRunner))));
+
+                if (runnerType == null)
+                {
+                    logger.Log($"Could not find a runner type in '{options.EngineName}' engine assembly that is derived from BladeRunner.");
+                    break;
+                }
+
+                runner = logger.Try($"Instantiating runner ...", options.Debug, () => (BladeRunner)Activator.CreateInstance(runnerType, logger));
+
+                if (runner == null)
+                {
+                    logger.Abort($"Instantiating '{options.EngineName}' runner failed", !options.Debug);
+                    break;
+                }
+                
+                options.DefaultOutputExtensions = runner.Engine.Config.FileExtension;
 
                 result = true;
             } while (false);
@@ -139,11 +120,11 @@ example:
         }
         static bool IsArgValue(string arg)
         {
-            return !arg.StartsWith("-") && string.Compare(arg, "runner", true) != 0 && string.Compare(arg, "/?", true) != 0 && !IsSomeString(arg, true);
+            return !arg.StartsWith("-") && string.Compare(arg, "runner", true) != 0 && string.Compare(arg, "/?", true) != 0 && !IsSomeString(arg, rejectAllWhitespaceStrings: true);
         }
-        static BladeRunnerOptions GetOptions(string[] args)
+        static BladeCLIOptions GetOptions(string[] args)
         {
-            var result = new BladeRunnerOptions();
+            var result = new BladeCLIOptions();
 
             for (var i = 0; i < args.Length; i++)
             {
@@ -193,7 +174,7 @@ example:
 
                 if (arg == "-i")
                 {
-                    if (i < args.Length - 1)
+                    if (i < args.Length - 1 && IsArgValue(args[i + 1]))
                     {
                         if (args[i + 1].IndexOf('<') >= 0)
                         {
@@ -252,7 +233,7 @@ example:
                 {
                     result.UseConfig = true;
 
-                    if (i < args.Length - 1)
+                    if (i < args.Length - 1 && IsArgValue(args[i + 1]))
                     {
                         result.GivenConfig = args[i + 1];
                     }
@@ -264,7 +245,7 @@ example:
                 {
                     result.UseModel = true;
 
-                    if (i < args.Length - 1)
+                    if (i < args.Length - 1 && IsArgValue(args[i + 1]))
                     {
                         result.GivenModel = args[i + 1];
                     }
@@ -274,7 +255,7 @@ example:
 
                 if (arg == "-e")
                 {
-                    if (i < args.Length - 1)
+                    if (i < args.Length - 1 && IsArgValue(args[i + 1]))
                     {
                         var path = GetEngineAssemblyPath(args[i + 1]);
 
@@ -287,7 +268,7 @@ example:
 
                     continue;
                 }
-                
+
             }
 
             return result;
@@ -302,17 +283,27 @@ example:
             {
                 var options = GetOptions(args);
 
-                BladeRunner runner;
-
-                if (CreateRunner(options, out runner))
+                if (options != null)
                 {
-                    if (options.Debug)
-                    {
-                        logger.Log(Environment.NewLine + "Given options:");
-                        logger.Debug(Environment.NewLine + JsonConvert.SerializeObject(options, Formatting.Indented) + Environment.NewLine);
-                    }
+                    BladeRunner runner;
 
-                    runner.Run(options);
+                    if (CreateRunner(options, out runner))
+                    {
+                        options.BladeRunner = runner;
+
+                        if (options.Debug)
+                        {
+                            logger.Log(Environment.NewLine + "Given options:");
+                            logger.Debug(Environment.NewLine + JsonConvert.SerializeObject(options, Formatting.Indented) + Environment.NewLine);
+                        }
+
+                        var validateResult = options.Validate(logger);
+
+                        if (validateResult.Succeeded)
+                        {
+                            runner.Run(validateResult.Data);
+                        }
+                    }
                 }
             }
         }

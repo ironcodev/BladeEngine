@@ -100,6 +100,13 @@ namespace BladeEngine.Core
         {
             logger.Log(message, LogType.Default);
         }
+        public static void Log(this ILogger logger, string message, bool show)
+        {
+            if (show)
+            {
+                logger.Log(message, LogType.Default);
+            }
+        }
         public static void Info(this ILogger logger, string message)
         {
             logger.Log(message, LogType.Info);

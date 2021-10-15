@@ -174,7 +174,7 @@ namespace BladeEngine.Java
                                         errorMessage: "\tCompiling template failed",
                                         filename: "javac.exe",
                                         onExecute: sr => sr.IsSucceeded(@"^\s*$", true, true),
-                                        args: $"-cp \".;{AppPath.ProgramDir}\\java;{Engine.StrongConfig.ClassPath?.Join(";")}\" {Path.GetFileName(tmpFileJava)}",
+                                        args: $"-cp \".;{AppPath.ProgramDir}\\java;{StrongEngine.StrongConfig.ClassPath?.Join(";")}\" {Path.GetFileName(tmpFileJava)}",
                                         workingDirectory: Path.GetDirectoryName(tmpFileJava),
                                         throwErrors: true))
                         {
@@ -237,7 +237,7 @@ namespace BladeEngine.Java
                     Logger.Log(Environment.NewLine + "STEP 1. Checking if JDK exists ...");
                 }
 
-                if (Engine.StrongConfig.RunnerConfig.CheckJdkExistence)
+                if (StrongEngine.StrongConfig.RunnerConfig.CheckJdkExistence)
                 {
                     // STEP 1.1. Check whether java.exe is executed without any error
 
@@ -354,7 +354,7 @@ public class Program {{
                                 errorMessage: "Compiling template runner failed",
                                 filename: "javac.exe",
                                 onExecute: sr => sr.IsSucceeded(@"^\s*$", true, true),
-                                args: $"-cp \".;{AppPath.ProgramDir}\\java;{Engine.StrongConfig.ClassPath?.Join(";")}\" {Path.GetFileName(tmpProgram)}",
+                                args: $"-cp \".;{AppPath.ProgramDir}\\java;{StrongEngine.StrongConfig.ClassPath?.Join(";")}\" {Path.GetFileName(tmpProgram)}",
                                 workingDirectory: tmpDir,
                                 throwErrors: true))
                     {
@@ -376,7 +376,7 @@ public class Program {{
 
                                     return sr.Succeeded;
                                 },
-                                args: $"-cp \".;{AppPath.ProgramDir}\\java;{Engine.StrongConfig.ClassPath?.Join(";")}\" {Path.GetFileNameWithoutExtension(tmpProgram)}",
+                                args: $"-cp \".;{AppPath.ProgramDir}\\java;{StrongEngine.StrongConfig.ClassPath?.Join(";")}\" {Path.GetFileNameWithoutExtension(tmpProgram)}",
                                 workingDirectory: tmpDir,
                                 throwErrors: true))
                 {

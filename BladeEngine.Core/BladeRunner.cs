@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using BladeEngine.Core.Utils.Logging;
-using Newtonsoft.Json;
 using static BladeEngine.Core.Utils.LanguageConstructs;
 
 namespace BladeEngine.Core
@@ -9,7 +8,7 @@ namespace BladeEngine.Core
     public abstract class BladeRunner
     {
         public ILogger Logger { get; set; }
-        public abstract BladeEngineConfigBase EngineConfig { get; }
+        public abstract BladeEngineBase Engine { get; }
         public BladeRunner(ILogger logger)
         {
             Logger = logger;
@@ -22,48 +21,13 @@ namespace BladeEngine.Core
     {
         public BladeRunner(ILogger logger) : base(logger)
         {
-            Engine = new TBladeEngine();
+            StrongEngine = new TBladeEngine();
         }
-        protected TBladeEngine Engine { get; private set; }
-        public override BladeEngineConfigBase EngineConfig => Engine.Config;
-        bool InitConfig(BladeRunnerOptions options, out Exception ex)
-        {
-            var result = true;
-
-            ex = null;
-
-            if (IsSomeString(options.GivenConfig, true))
-            {
-                var cfg = Logger.Try("Deserializing engine configuration ...",
-                    options.Debug,
-                    () => JsonConvert.DeserializeObject<TBladeEngineConfig>(options.GivenConfig),
-                    out ex);
-
-                Engine.Config = cfg;
-
-                result = cfg != null;
-            }
-            else
-            {
-                if (options.Debug)
-                {
-                    Logger.Log(Environment.NewLine + "No config is given. Used default config.");
-                }
-
-                Engine.Config = new TBladeEngineConfig();
-            }
-
-            if (options.Debug)
-            {
-                Logger.Log(Environment.NewLine + "Config is:");
-                Logger.Debug(Environment.NewLine + JsonConvert.SerializeObject(Engine.Config, Formatting.Indented));
-            }
-
-            return result;
-        }
+        public override BladeEngineBase Engine => StrongEngine;
+        public TBladeEngine StrongEngine { get; private set; }
         bool Parse(BladeRunnerOptions options, out BladeTemplateBase template, out Exception ex)
         {
-            template = Logger.Try($"Parsing input template ...", options.Debug, () => Engine.Parse(options._Input), out ex);
+            template = Logger.Try($"Parsing input template ...", options.Debug, () => Engine.Parse(options.Input), out ex);
 
             return template != null;
         }
@@ -87,24 +51,24 @@ namespace BladeEngine.Core
 
             ex = null;
 
-            if (options.Runner && options.OutputMode == OutputMode.Manual)
+            if (!IsSomeString(options.OutputFile))
             {
                 result = true;
             }
             else
             {
-                if (options.OutputMode != OutputMode.None)
-                {
-                    result = Logger.Try($"Writing output '{options.OutputFile}' ...", options.Debug, () => File.WriteAllText(options.OutputFile, renderedTemplate), out ex);
+                result = Logger.Try($"Writing output '{options.OutputFile}' ...", options.Debug, () => File.WriteAllText(options.OutputFile, renderedTemplate), out ex);
 
-                    if (!options.Debug && options.OutputMode != OutputMode.Manual && !options.LogRunnerOutput)
-                    {
-                        Logger.Log($"Output '{options.OutputFile}' created.");
-                    }
-                }
-                else
+                if (!options.LogRunnerOutput)
                 {
-                    result = true;
+                    if (result)
+                    {
+                        Logger.Log($"Output '{options.OutputFile}' created.", !options.Debug);
+                    }
+                    else
+                    {
+                        Logger.Abort($"Writing output '{options.OutputFile}' failed", !options.Debug);
+                    }
                 }
             }
 
@@ -116,7 +80,7 @@ namespace BladeEngine.Core
 
             ex = null;
 
-            if (options.OutputMode != OutputMode.None)
+            if (IsSomeString(options.RunnerOutputFile))
             {
                 if (options.Debug)
                 {
@@ -191,17 +155,11 @@ namespace BladeEngine.Core
 
             do
             {
-                var validateResult = options.Validate(Logger);
+                var validateResult = options.Validate();
 
                 if (!validateResult.Succeeded)
                 {
                     result.Copy(validateResult);
-                    break;
-                }
-
-                if (!InitConfig(options, out ex))
-                {
-                    result.TrySetStatus("DeserializingConfigFailed");
                     break;
                 }
 
@@ -229,7 +187,7 @@ namespace BladeEngine.Core
                 result.RenderSuceeded = true;
                 result.RenderedTemplate = renderedTemplate;
 
-                if (string.IsNullOrEmpty(renderedTemplate))
+                if (!IsSomeString(renderedTemplate))
                 {
                     result.TrySetStatus("TemplateRenderHadNoResult");
                     Logger.Warn($"Rendering template did not produce any result. Running template aborted.");
@@ -249,9 +207,11 @@ namespace BladeEngine.Core
                 {
                     string runnerOutput;
 
-                    if (!Runner(options, result, out runnerOutput, out ex))
+                    result.RunnerSuceeded = Runner(options, result, out runnerOutput, out ex);
+                    
+                    if (!result.RunnerSuceeded)
                     {
-                        if (options.OutputMode == OutputMode.Manual)
+                        if (IsSomeString(options.RunnerOutputFile))
                         {
                             result.TrySetStatus("RunnerFailed");
                             Logger.Warn("Neither output specified nor asked to run the template. What's on your mind?");
@@ -259,11 +219,12 @@ namespace BladeEngine.Core
 
                         break;
                     }
-
-                    result.RunnerSuceeded = true;
-                    result.SaveRunnerOutputSuceeded = SaveRunnerOutput(options, runnerOutput, out ex);
-                    result.RunnerOutput = runnerOutput;
-                    result.TrySetStatus("RunnerSucceeded");
+                    else
+                    {
+                        result.RunnerOutput = runnerOutput;
+                        result.SaveRunnerOutputSuceeded = SaveRunnerOutput(options, runnerOutput, out ex);
+                        result.TrySetStatus("RunnerSucceeded");
+                    }
                 }
 
             } while (false);

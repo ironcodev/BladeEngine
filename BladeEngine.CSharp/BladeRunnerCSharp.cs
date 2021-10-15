@@ -23,34 +23,42 @@ namespace BladeEngine.CSharp
     {
         public BladeRunnerCSharp(ILogger logger) : base(logger)
         { }
-        bool GetModel(BladeRunnerOptions options, BladeRunnerRunResult runnerResult, Type modelType, out object model)
+        bool GetModel(BladeRunnerOptions options, BladeRunnerRunResult runnerResult, Type modelType)
         {
             var result = false;
 
-            model = default;
-
-            if (IsSomeString(options.GivenModel, true))
+            if (options.Model != null)
             {
                 try
                 {
-                    var obj = (JObject)JsonConvert.DeserializeObject(options.GivenModel);
-
-                    if (IsSomeString(Engine.StrongConfig.StrongModelType, true))
+                    if (IsSomeString(StrongEngine.StrongConfig.StrongModelType, true))
                     {
-                        try
+                        var givenModelType = options.Model.GetType();
+
+                        if (givenModelType == typeof(JObject) && modelType != typeof(JObject))
                         {
-                            model = obj.ToObject(modelType);
-                            result = true;
+                            try
+                            {
+                                options.Model = ((JObject)options.Model).ToObject(modelType);
+                                result = true;
+                            }
+                            catch (Exception e)
+                            {
+                                runnerResult.TrySetStatus("MappingModelTypeFailed");
+                                runnerResult.Exception = new BladeEngineException($"Converting deserialized model to '{StrongEngine.StrongConfig.StrongModelType}' failed.", e);
+                            }
                         }
-                        catch (Exception e)
+                        else
                         {
-                            runnerResult.TrySetStatus("MappingModelTypeFailed");
-                            runnerResult.Exception = new BladeEngineException($"Converting deserialized model to '{Engine.StrongConfig.StrongModelType}' failed.", e);
+                            if (!(givenModelType == modelType || givenModelType.DescendsFrom(modelType)))
+                            {
+                                runnerResult.SetStatus("InvalidModelType");
+                                runnerResult.Exception = new BladeEngineException($"Expected a '{StrongEngine.StrongConfig.StrongModelType}', but a '{givenModelType.Name}' model is given.");
+                            }
                         }
                     }
                     else
                     {
-                        model = obj;
                         result = true;
                     }
                 }
@@ -64,7 +72,6 @@ namespace BladeEngine.CSharp
             }
             else
             {
-                model = null;
                 result = true;
             }
 
@@ -103,9 +110,9 @@ namespace BladeEngine.CSharp
                     Path.Combine(Path.GetDirectoryName(typeof(System.Runtime.GCSettings).GetTypeInfo().Assembly.Location), "System.Runtime.dll")
                 };
 
-            if (Engine.StrongConfig.References != null && Engine.StrongConfig.References.Count > 0)
+            if (StrongEngine.StrongConfig.References != null && StrongEngine.StrongConfig.References.Count > 0)
             {
-                foreach (var reference in Engine.StrongConfig.References.Where(r => IsSomeString(r, true)))
+                foreach (var reference in StrongEngine.StrongConfig.References.Where(r => IsSomeString(r, true)))
                 {
                     var toAdd = "";
 
@@ -203,9 +210,9 @@ namespace BladeEngine.CSharp
 
             modelType = null;
 
-            if (Engine.StrongConfig.UseStrongModel)
+            if (StrongEngine.StrongConfig.UseStrongModel)
             {
-                if (IsSomeString(Engine.StrongConfig.StrongModelType, true))
+                if (IsSomeString(StrongEngine.StrongConfig.StrongModelType, true))
                 {
                     foreach (var reference in refPaths)
                     {
@@ -213,9 +220,9 @@ namespace BladeEngine.CSharp
                         {
                             var asm = Assembly.LoadFrom(reference);
 
-                            if (IsSomeString(Engine.StrongConfig.StrongModelType, true) && modelType == null)
+                            if (IsSomeString(StrongEngine.StrongConfig.StrongModelType, true) && modelType == null)
                             {
-                                modelType = asm.GetType(Engine.StrongConfig.StrongModelType);
+                                modelType = asm.GetType(StrongEngine.StrongConfig.StrongModelType);
 
                                 if (modelType != null)
                                 {
@@ -238,7 +245,7 @@ namespace BladeEngine.CSharp
 
                         runnerResult.SetStatus("ModelTypeNotFound");
 
-                        throw new BladeEngineException($"Model type '{Engine.StrongConfig.StrongModelType}' was not found in references");
+                        throw new BladeEngineException($"Model type '{StrongEngine.StrongConfig.StrongModelType}' was not found in references");
                     }
                 }
                 else
@@ -267,9 +274,9 @@ namespace BladeEngine.CSharp
 
                 if (assembly != null)
                 {
-                    if (GetModel(options, runnerResult, modelType, out object model))
+                    if (GetModel(options, runnerResult, modelType))
                     {
-                        var templateMainClass = runnerResult.Template.GetFullMainClassName(); // Engine.StrongConfig.Namespace + "." + runnerResult.Template.GetMainClassName();
+                        var templateMainClass = runnerResult.Template.GetFullMainClassName(); // StrongEngine.StrongConfig.Namespace + "." + runnerResult.Template.GetMainClassName();
                         var templateType = assembly.GetType(templateMainClass);
 
                         if (templateType != null)
@@ -290,7 +297,7 @@ namespace BladeEngine.CSharp
                                     }
                                     else if (parameters.Length == 1)
                                     {
-                                        result = method.Invoke(templateInstance, new object[] { model })?.ToString();
+                                        result = method.Invoke(templateInstance, new object[] { options.Model })?.ToString();
                                     }
                                     else
                                     {

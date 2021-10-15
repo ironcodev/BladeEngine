@@ -43,7 +43,6 @@ namespace BladeEngine.Java
         {
             return MergeDependencies(currentDependencies, newDependencies, "import", ";");
         }
-
         protected override bool OnIncludeTemplate(CharReader reader, BladeTemplateBase current, BladeTemplateBase include)
         {
             current.Dependencies += Environment.NewLine + $"import {include.GetFullMainClassName()};";
