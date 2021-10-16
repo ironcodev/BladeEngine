@@ -1,5 +1,7 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using BladeEngine.Core;
 using BladeEngine.Core.Utils;
 using BladeEngine.Core.Utils.Logging;
@@ -15,7 +17,7 @@ namespace BladeEngine.CLI
         User,
         Auto
     }
-    public class BladeCLIOptionsValidateResult: ServiceResponse<BladeRunnerOptions>
+    public class BladeCLIOptionsValidateResult : ServiceResponse<BladeRunnerOptions>
     {
     }
     public class BladeCLIOptions
@@ -174,11 +176,13 @@ namespace BladeEngine.CLI
 
             Exception ex;
 
-            if (IsSomeString(GivenConfig, true))
+            var configType = BladeRunner.Engine.Config.GetType();
+
+            if (IsSomeString(GivenConfig, rejectAllWhitespaceStrings: true))
             {
                 var cfg = logger.Try("Deserializing engine configuration ...",
                     Debug,
-                    () => JsonConvert.DeserializeObject(GivenConfig, BladeRunner.Engine.Config.GetType()),
+                    () => JsonConvert.DeserializeObject(GivenConfig, configType),
                     out ex);
 
                 BladeRunner.Engine.Config = (BladeEngineConfigBase)cfg;
@@ -203,6 +207,153 @@ namespace BladeEngine.CLI
             {
                 logger.Log(Environment.NewLine + "Config is:");
                 logger.Debug(Environment.NewLine + JsonConvert.SerializeObject(BladeRunner.Engine.Config, Formatting.Indented));
+            }
+
+            var path = Path.Combine(AppPath.ProgramDir, $"config.{EngineName}.json");
+
+            if (Debug)
+            {
+                logger.Debug($"Checking Blade Engine {EngineName} global config at '{path}' ...");
+            }
+
+            if (File.Exists(path))
+            {
+                try
+                {
+                    if (Debug)
+                    {
+                        logger.Debug($"Global config found. Trying loading it ...");
+                    }
+
+                    var configContent = File.ReadAllText(path);
+
+                    if (IsSomeString(configContent, rejectAllWhitespaceStrings: true))
+                    {
+                        var engineConfig = (JObject)JsonConvert.DeserializeObject(configContent);
+
+                        if (engineConfig != null)
+                        {
+                            if (Debug)
+                            {
+                                logger.Danger($"Copying Global config properties ...");
+                            }
+
+                            var cannotCreateTempConfig = false;
+
+                            foreach (var prop in configType.GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(p => p.CanRead && p.CanWrite))
+                            {
+                                if (Debug)
+                                {
+                                    logger.Debug($"Looking for a '{prop.Name}' property in global config ...");
+                                }
+
+                                if (engineConfig.ContainsKey(prop.Name))
+                                {
+                                    if (Debug)
+                                    {
+                                        logger.Debug($"Found. Copying its value to engine config ...");
+                                    }
+
+                                    try
+                                    {
+                                        if (Debug)
+                                        {
+                                            logger.Debug($"Creating a temporary {configType.Name} strong config from global config ...");
+                                        }
+
+                                        var tempConfig = engineConfig.ToObject(configType);
+
+                                        if (tempConfig != null)
+                                        {
+                                            if (Debug)
+                                            {
+                                                logger.Debug($"Done. Copying its {prop.Name}'s value ...");
+                                            }
+
+                                            try
+                                            {
+                                                prop.SetValue(BladeRunner.Engine.Config, prop.GetValue(tempConfig));
+
+                                                if (Debug)
+                                                {
+                                                    logger.Debug($"Done.");
+                                                }
+                                            }
+                                            catch (Exception e)
+                                            {
+                                                if (Debug)
+                                                {
+                                                    logger.Danger($"Error setting '{prop.Name}' property from global config onto created engine's config.{Environment.NewLine}{e.ToString(Environment.NewLine)}");
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            cannotCreateTempConfig = true;
+
+                                            if (Debug)
+                                            {
+                                                logger.Debug($"temp config is null");
+                                                logger.Debug($"Global config mapping aborted");
+                                            }
+                                        }
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        cannotCreateTempConfig = true;
+
+                                        if (Debug)
+                                        {
+                                            logger.Danger($"FAILED");
+                                            logger.Debug($"Error converting {EngineName}'s global config to '{configType.Name}'.{Environment.NewLine}{e.ToString(Environment.NewLine)}");
+                                            logger.Debug($"Global config mapping aborted");
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    if (Debug)
+                                    {
+                                        logger.Debug($"Not found.");
+                                    }
+                                }
+
+                                if (cannotCreateTempConfig)
+                                {
+                                    break;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            if (Debug)
+                            {
+                                logger.Debug($"{EngineName}'s global config is null");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (Debug)
+                        {
+                            logger.Debug($"Global config is empty");
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    if (Debug)
+                    {
+                        logger.Danger($"Error reading global config.{Environment.NewLine}{e.ToString(Environment.NewLine)}");
+                    }
+                }
+            }
+            else
+            {
+                if (Debug)
+                {
+                    logger.Danger($"No global config found.");
+                }
             }
 
             return result;
@@ -369,7 +520,7 @@ namespace BladeEngine.CLI
                     LogRunnerOutput = LogRunnerOutput
                 }
             };
-            
+
             do
             {
                 // STEP 1. Validate input template
