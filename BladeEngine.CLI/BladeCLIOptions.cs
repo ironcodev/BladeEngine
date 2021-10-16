@@ -1,12 +1,13 @@
 ﻿using System;
 using System.IO;
+using BladeEngine.Core;
 using BladeEngine.Core.Utils;
 using BladeEngine.Core.Utils.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using static BladeEngine.Core.Utils.LanguageConstructs;
 
-namespace BladeEngine.Core
+namespace BladeEngine.CLI
 {
     public enum OutputMode
     {
