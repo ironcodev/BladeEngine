@@ -63,7 +63,7 @@ namespace BladeEngine.CLI
         public bool UseModel { get; set; }
         public string GivenModel { get; set; }
         public string ModelPath { get; set; }
-        public BladeRunner BladeRunner { get; set; }
+        internal BladeRunner BladeRunner { get; set; }
         private bool ValidateInput(ILogger logger, BladeCLIOptionsValidateResult validateResult)
         {
             var result = false;
@@ -201,12 +201,6 @@ namespace BladeEngine.CLI
                 {
                     logger.Log(Environment.NewLine + "No config is given. Used default config.");
                 }
-            }
-
-            if (result && Debug)
-            {
-                logger.Log(Environment.NewLine + "Config is:");
-                logger.Debug(Environment.NewLine + JsonConvert.SerializeObject(BladeRunner.Engine.Config, Formatting.Indented));
             }
 
             var path = Path.Combine(AppPath.ProgramDir, $"config.{EngineName}.json");
@@ -354,6 +348,12 @@ namespace BladeEngine.CLI
                 {
                     logger.Danger($"No global config found.");
                 }
+            }
+
+            if (result && Debug)
+            {
+                logger.Log(Environment.NewLine + "Config is:");
+                logger.Debug(Environment.NewLine + JsonConvert.SerializeObject(BladeRunner.Engine.Config, Formatting.Indented));
             }
 
             return result;
@@ -517,7 +517,8 @@ namespace BladeEngine.CLI
                     CacheDir = CacheDir,
                     DontOverwriteExistingOutputFile = DontOverwriteExistingOutputFile,
                     DontOverwriteExistingRunnerOutputFile = DontOverwriteExistingRunnerOutputFile,
-                    LogRunnerOutput = LogRunnerOutput
+                    LogRunnerOutput = LogRunnerOutput,
+                    Runner = Runner
                 }
             };
 

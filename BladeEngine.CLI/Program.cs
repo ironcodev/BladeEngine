@@ -120,7 +120,7 @@ example:
         }
         static bool IsArgValue(string arg)
         {
-            return !arg.StartsWith("-") && string.Compare(arg, "runner", true) != 0 && string.Compare(arg, "/?", true) != 0 && !IsSomeString(arg, rejectAllWhitespaceStrings: true);
+            return !arg.StartsWith("-") && string.Compare(arg, "runner", true) != 0 && string.Compare(arg, "/?", true) != 0 && IsSomeString(arg, rejectAllWhitespaceStrings: true);
         }
         static BladeCLIOptions GetOptions(string[] args)
         {
@@ -291,17 +291,22 @@ example:
                     {
                         options.BladeRunner = runner;
 
+                        var validateResult = options.Validate(logger);
+
                         if (options.Debug)
                         {
                             logger.Log(Environment.NewLine + "Given options:");
                             logger.Debug(Environment.NewLine + JsonConvert.SerializeObject(options, Formatting.Indented) + Environment.NewLine);
                         }
 
-                        var validateResult = options.Validate(logger);
-
                         if (validateResult.Succeeded)
                         {
-                            runner.Run(validateResult.Data);
+                            var runnerResult = runner.Run(validateResult.Data);
+
+                            if (!runnerResult.Succeeded)
+                            {
+                                logger.Log($"Blade runner failed '{runnerResult.Status}'");
+                            }
                         }
                     }
                 }

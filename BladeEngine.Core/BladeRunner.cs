@@ -211,9 +211,10 @@ namespace BladeEngine.Core
                     
                     if (!result.RunnerSuceeded)
                     {
+                        result.TrySetStatus("RunnerFailed");
+
                         if (IsSomeString(options.RunnerOutputFile))
                         {
-                            result.TrySetStatus("RunnerFailed");
                             Logger.Warn("Neither output specified nor asked to run the template. What's on your mind?");
                         }
 

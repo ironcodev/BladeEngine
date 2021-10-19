@@ -59,18 +59,20 @@ namespace BladeEngine.Core
                     break;
                 }
 
-                if (File.Exists(OutputFile) && !DontOverwriteExistingOutputFile)
+                if (File.Exists(OutputFile) && DontOverwriteExistingOutputFile)
                 {
                     result.SetStatus("OutputAlreadyExists");
                     break;
                 }
 
-                if (File.Exists(RunnerOutputFile) && !DontOverwriteExistingRunnerOutputFile)
+                if (File.Exists(RunnerOutputFile) && DontOverwriteExistingRunnerOutputFile)
                 {
                     result.SetStatus("RunnerOutputAlreadyExists");
                     break;
                 }
 
+                result.Succeeded = true;
+                result.Status = "Succeeded";
             } while (false);
             return result;
         }
