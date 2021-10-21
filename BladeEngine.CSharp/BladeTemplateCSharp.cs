@@ -97,6 +97,7 @@ namespace Blade
         {
             return $@"
 {ExternalCode}
+{(IsSomeString(Body + Functions, rejectAllWhitespaceStrings: true) ? $@"
 namespace {GetModuleName()}
 {{
     public class {GetMainClassName()}: BladeTemplateCSharpBase
@@ -113,6 +114,7 @@ namespace {GetModuleName()}
         {Functions}
     }}
 }}
+": "")}
 ";
         }
         protected override string GetEngineName()

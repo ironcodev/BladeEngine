@@ -187,23 +187,23 @@ namespace BladeEngine.Core
                 result.RenderSuceeded = true;
                 result.RenderedTemplate = renderedTemplate;
 
-                if (!IsSomeString(renderedTemplate))
+                if (!IsSomeString(renderedTemplate, rejectAllWhitespaceStrings: true))
                 {
                     result.TrySetStatus("TemplateRenderHadNoResult");
                     Logger.Warn($"Rendering template did not produce any result. Running template aborted.");
                     break;
                 }
 
-                if (!SaveOutput(options, renderedTemplate, out ex))
+                result.SaveOutputSuceeded = SaveOutput(options, renderedTemplate, out ex);
+                
+                if (!result.SaveOutputSuceeded)
                 {
                     result.TrySetStatus("SaveOutputFailed");
                     Logger.Abort($"Writing output '{options.OutputFile}' ...", !options.Debug);
                     break;
                 }
-
-                result.SaveOutputSuceeded = true;
-
-                if (options.Runner)
+                
+                if (options.Runner && (IsSomeString(options.RunnerOutputFile) || options.LogRunnerOutput))
                 {
                     string runnerOutput;
 
@@ -212,12 +212,6 @@ namespace BladeEngine.Core
                     if (!result.RunnerSuceeded)
                     {
                         result.TrySetStatus("RunnerFailed");
-
-                        if (IsSomeString(options.RunnerOutputFile))
-                        {
-                            Logger.Warn("Neither output specified nor asked to run the template. What's on your mind?");
-                        }
-
                         break;
                     }
                     else
@@ -228,9 +222,16 @@ namespace BladeEngine.Core
                     }
                 }
 
+                if (!IsSomeString(options.OutputFile) && (!options.Runner || !(IsSomeString(options.RunnerOutputFile) || options.LogRunnerOutput)))
+                {
+                    result.TrySetStatus("NoOutputNoRunner");
+                    Logger.Warn($"{Environment.NewLine}  Warning: Neither output specified nor asked to run the template. What's on your mind?");
+                }
+
             } while (false);
 
             result.Exception = ex;
+            result.Succeeded = ex == null && (result.SaveOutputSuceeded || result.RunnerSuceeded);
 
             return result;
         }

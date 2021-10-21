@@ -44,7 +44,11 @@ namespace BladeEngine.CSharp
         }
         protected override bool OnIncludeTemplate(CharReader reader, BladeTemplateBase current, BladeTemplateBase include)
         {
-            current.Dependencies = Try(() => MergeDependencies(current.Dependencies, include.Dependencies + Environment.NewLine + $"using {include.GetModuleName()};"), e => new BladeEngineMergeDependenciesException(reader.Row, reader.Col, include.Settings.Path, e));
+            current.Dependencies = Try(() => MergeDependencies(current.Dependencies,
+                                                                include.Dependencies + Environment.NewLine
+                                                                +
+                                                                (IsSomeString(include.Body + include.Functions, rejectAllWhitespaceStrings: true) ? $"using {include.GetModuleName()};": "")
+                                                            ), e => new BladeEngineMergeDependenciesException(reader.Row, reader.Col, include.Settings.Path, e));
             current.ExternalCode += $@"
 // ------ include: {include.Settings.Path} ({include.Settings.AbsolutePath}) (start) -------
 {include.RenderContent()}

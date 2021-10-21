@@ -53,19 +53,13 @@ namespace BladeEngine.Core
                     break;
                 }
 
-                if (!IsSomeString(OutputFile))
-                {
-                    result.SetStatus("NoOutputFile");
-                    break;
-                }
-
-                if (File.Exists(OutputFile) && DontOverwriteExistingOutputFile)
+                if (IsSomeString(OutputFile) && File.Exists(OutputFile) && DontOverwriteExistingOutputFile)
                 {
                     result.SetStatus("OutputAlreadyExists");
                     break;
                 }
 
-                if (File.Exists(RunnerOutputFile) && DontOverwriteExistingRunnerOutputFile)
+                if (IsSomeString(RunnerOutputFile) && File.Exists(RunnerOutputFile) && DontOverwriteExistingRunnerOutputFile)
                 {
                     result.SetStatus("RunnerOutputAlreadyExists");
                     break;
