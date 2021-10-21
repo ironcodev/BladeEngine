@@ -2,7 +2,7 @@
   "profiles": {
     "BladeEngine.CLI": {
       "commandName": "Project",
-      "commandLineArgs": "runner -e java -i a.java.blade -o -debug"
+      "commandLineArgs": "blade runner -e csharp -i a.blade -o -pr -debug"
     }
   }
 }

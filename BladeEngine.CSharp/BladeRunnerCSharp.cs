@@ -29,49 +29,40 @@ namespace BladeEngine.CSharp
 
             if (options.Model != null)
             {
-                try
+                if (IsSomeString(StrongEngine.StrongConfig.StrongModelType, true))
                 {
-                    if (IsSomeString(StrongEngine.StrongConfig.StrongModelType, true))
-                    {
-                        var givenModelType = options.Model.GetType();
+                    var givenModelType = options.Model.GetType();
 
-                        if (givenModelType == typeof(JObject) && modelType != typeof(JObject))
+                    if (givenModelType == typeof(JObject) && modelType != typeof(JObject))
+                    {
+                        if (!Logger.Try($"Mapping deserialized JObject model to {givenModelType.Name} ...", () =>
                         {
-                            try
-                            {
-                                options.Model = ((JObject)options.Model).ToObject(modelType);
-                                result = true;
-                            }
-                            catch (Exception e)
-                            {
-                                runnerResult.TrySetStatus("MappingModelTypeFailed");
-                                runnerResult.Exception = new BladeEngineException($"Converting deserialized model to '{StrongEngine.StrongConfig.StrongModelType}' failed.", e);
-                            }
-                        }
-                        else
+                            options.Model = ((JObject)options.Model).ToObject(modelType);
+                            return true;
+                        }, out Exception ex))
                         {
-                            if (!(givenModelType == modelType || givenModelType.DescendsFrom(modelType)))
-                            {
-                                runnerResult.SetStatus("InvalidModelType");
-                                runnerResult.Exception = new BladeEngineException($"Expected a '{StrongEngine.StrongConfig.StrongModelType}', but a '{givenModelType.Name}' model is given.");
-                            }
+                            runnerResult.TrySetStatus("MappingModelTypeFailed");
+                            runnerResult.Exception = new BladeEngineException($"Converting deserialized model to '{StrongEngine.StrongConfig.StrongModelType}' failed.", ex);
                         }
                     }
                     else
                     {
-                        result = true;
+                        if (!(givenModelType == modelType || givenModelType.DescendsFrom(modelType)))
+                        {
+                            runnerResult.SetStatus("InvalidModelType");
+                            runnerResult.Exception = new BladeEngineException($"Expected a '{StrongEngine.StrongConfig.StrongModelType}', but a '{givenModelType.Name}' model is given.");
+                        }
                     }
                 }
-                catch (Exception e)
+                else
                 {
-                    runnerResult.TrySetStatus("DeserializeModelFailed");
-                    runnerResult.Exception = new BladeEngineException($"Deserializing given json model failed.", e);
-                    Logger.Log("Error deserializing model");
-                    Logger.Log(e);
+                    result = true;
                 }
             }
             else
             {
+                Logger.Log("No model specified. 'null' will be used as model.", options.Debug);
+
                 result = true;
             }
 
@@ -289,6 +280,8 @@ namespace BladeEngine.CSharp
 
                                 if (method != null)
                                 {
+                                    Logger.Log($"Invoking Render() on {templateMainClass} instance ...", options.Debug);
+
                                     var parameters = method.GetParameters();
 
                                     if (parameters.Length == 0)
@@ -297,7 +290,7 @@ namespace BladeEngine.CSharp
                                     }
                                     else if (parameters.Length == 1)
                                     {
-                                        result = method.Invoke(templateInstance, new object[] { options.Model })?.ToString();
+                                        result = method.Invoke(templateInstance, new object[] { (object)options.Model })?.ToString();
                                     }
                                     else
                                     {

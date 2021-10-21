@@ -469,18 +469,14 @@ namespace BladeEngine.CLI
                             }
                         }
 
-                        try
+                        if (!logger.Try($"Deserializing model ...", Debug, () =>
                         {
                             validateResult.Data.Model = (JObject)JsonConvert.DeserializeObject(GivenModel);
-                        }
-                        catch (Exception e)
+                        }, out ex))
                         {
                             validateResult.TrySetStatus("DeserializeModelFailed");
-                            validateResult.Exception = e;
-
-                            logger.Log("Error deserializing model");
-                            logger.Log(e);
-
+                            validateResult.Exception = ex;
+                            logger.Abort($"Error deserializing model", !Debug);
                             break;
                         }
                     }
