@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
 using BladeEngine.Core.Utils;
@@ -413,6 +414,25 @@ namespace BladeEngine.Core
                     }
 
                     sb.Append(item);
+                }
+            }
+
+            return sb.ToString();
+        }
+        public static string Join<T>(this IEnumerable<T> enumerable, Func<T, string> mapper, string separator = "")
+        {
+            var sb = new StringBuilder();
+
+            if (enumerable != null)
+            {
+                foreach (var item in enumerable)
+                {
+                    if (sb.Length >= 0)
+                    {
+                        sb.Append(separator);
+                    }
+
+                    sb.Append(mapper(item));
                 }
             }
 

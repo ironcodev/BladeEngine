@@ -16,6 +16,11 @@ using BladeEngine.Core.Exceptions;
 using static BladeEngine.Core.Utils.LanguageConstructs;
 using BladeEngine.Core.Utils.Logging;
 using Newtonsoft.Json.Linq;
+using System.Data.SqlClient;
+using System.Data;
+using System.Drawing;
+using System.Globalization;
+using System.Threading;
 
 namespace BladeEngine.CSharp
 {
@@ -95,8 +100,21 @@ namespace BladeEngine.CSharp
                     typeof(MD5CryptoServiceProvider).GetTypeInfo().Assembly.Location,   //      "                   "                   "
                     typeof(MD5).GetTypeInfo().Assembly.Location,                        //      "                   "                   "
                     typeof(HashAlgorithm).GetTypeInfo().Assembly.Location,              //      "                   "                   "
+                    typeof(WebClient).GetTypeInfo().Assembly.Location,                  // useful assembly
+                    typeof(Bitmap).GetTypeInfo().Assembly.Location,                     //   "      "
+                    typeof(Calendar).GetTypeInfo().Assembly.Location,                   //   "      "
+                    typeof(IQueryable).GetTypeInfo().Assembly.Location,                 //   "      "
+                    typeof(PropertyInfo).GetTypeInfo().Assembly.Location,               //   "      "
+                    typeof(Thread).GetTypeInfo().Assembly.Location,                     //   "      "
+                    typeof(File).GetTypeInfo().Assembly.Location,                       //   "      "
+                    typeof(FileSystemWatcher).GetTypeInfo().Assembly.Location,          //   "      "
+                    typeof(DataSet).GetTypeInfo().Assembly.Location,                    //   "      "
+                    typeof(SqlConnection).GetTypeInfo().Assembly.Location,              //   "      "
+                    typeof(JsonConvert).GetTypeInfo().Assembly.Location,                //   "      "
                     Assembly.Load(new AssemblyName("System.Security.Cryptography.Algorithms")).Location,
+                    Assembly.Load(new AssemblyName("System.ComponentModel.Primitives")).Location,
                     Assembly.Load(new AssemblyName("Microsoft.CSharp")).Location,
+                    Assembly.Load(new AssemblyName("System.Xml")).Location,
                     Assembly.Load(new AssemblyName("netstandard")).Location,
                     Path.Combine(Path.GetDirectoryName(typeof(System.Runtime.GCSettings).GetTypeInfo().Assembly.Location), "System.Runtime.dll")
                 };
