@@ -1,12 +1,12 @@
 ## Background
 
-Template engines are a great tool for dynamic content generation, from creating mail messages, source code files, project scafolding to even generating complete projects.
+Template engines are a great tool for dynamic content generation, from creating mail messages, source code files, scafolding to even generating complete projects.
 
-Many different template engines can be found in the internet. Each engine has its own specific tag and syntax through which users can write templates (usually stored on disk). Next, the engine is compiles or renders the template and returns the generated result devoid of the tags that were embeded in the source template.
+Many different template engines can be found in the internet. Each engine has its own specific tag and syntax through which users can write templates (usually stored on disk). Next, the engine compiles the template and returns the generated result devoid of the tags that had been embeded in the source template.
 
 Some template engines like [Liquid](https://shopify.github.io/liquid/) are fairly simple. `Liquid` was first created by [shopify](https://www.shopify.com/) to ease creating web pages and websites. Then, it was made open source and developers implemented it in different programming languages.
 
-Whereas template engines like [Liquid](https://shopify.github.io/liquid/) are abstract in their syntax and features -i.e. their syntax is independent of a specific programming language-, other template engines target a dedicated programming language.
+Whereas template engines like [Liquid](https://shopify.github.io/liquid/) are abstract regarding their syntax and features -i.e. their syntax is independent of a specific programming language-, other template engines target a programming language.
 
 For example [EJS](https://ejs.co/) is designed to be used in `nodejs` or [Razor](https://github.com/Antaris/RazorEngine) is a template engine for `.NET` with `C#/VB` syntax.
 
@@ -15,32 +15,35 @@ This second group of template engines provide wider and better templating featur
 With the ease of code generation that template engines provide, IDEs will also be more powerful, as they can lift a pain from developers by eliminating the need of creating repetetive files, writing redundant codes or copy-paste and manually modifing them each time.
 
 ## About
-Blade is a template engine with an abstract or language-dependent tagging. It provides a few engine plugins each one target a specific programming language. This way the user is able to write his/her templates in any programming language he is nimble in, `Javascript`, `Java`, `C#`, `VB`, `Python`, etc.
+Blade is a template engine with an abstract or language-independent code embeding. For each programming language, a specific plugin is used that understands how to compile templates written for that language. So, the user is able to write templates in a programming language he is nimble in. Currently, `Blade` supports `Javascript`, `Java`, `C#`, `VB` and `Python`. It is possible to add other languages to the engine.
 
-```markdown
-Syntax highlighted code block
-
-# Header 1
-## Header 2
-### Header 3
-
-- Bulleted
-- List
-
-1. Numbered
-2. List
-
-**Bold** and _Italic_ and `Code` text
-
-[Link](url) and ![Image](src)
+## Command Line Parameters
+Here is list of CLI parameters.
 ```
+blade [runner] [-e engine] [-c engine-config] [-i input-template] [-o output] [-on]
+      [-r runner-output] [-rn] [pr] [-m model] [-ch cache-path] [-debug] [-v] [-?]
 
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
+options:
+    runner  :   run template
+    -e      :   specify blade engine to parse the template. internal engines are:
+                    csharp, java, vb, javascript, python
+    -i      :   specify input balde template
+    -o      :   specify filename to save generated content into. if no filename is specified, use automatic filename
+    -on     :   do not overwrite output if already exists
+    -r      :   in case of using 'runner', a filename to save the result of executing generated code
+    -rn     :   do not overwrite runner output if already exists
+    -pr     :   print runner output
+    -c      :   engine config in json format or a filename that contains engine config in json format
+    -ch     :   path of a cache dir where runners store their compilation stuff in it (defaul is %AppData%\blade\cache)
+    -m      :   model in json format or a filename containing model in json format
+    -debug  :   execute runner in debug mode
+    -v      :   program version
+    -?      :   show this help
 
-### Jekyll Themes
-
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/ironcodev/BladeEngine/settings/pages). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
-
-### Support or Contact
-
-Having trouble with Pages? Check out our [documentation](https://docs.github.com/categories/github-pages-basics/) or [contact support](https://support.github.com/contact) and we’ll help you sort it out.
+example:
+    blade -e csharp -i my-template.blade
+    blade -e csharp -i my-template.blade -o my-template.cs
+    blade -e csharp -i my-template.blade -c "{ 'UseStrongModel': true, 'StrongModelType': 'Dictionary<string, object>' }
+"
+    blade runner -e csharp -i my-template.blade -m "{ 'name': 'John Doe' }"
+```
