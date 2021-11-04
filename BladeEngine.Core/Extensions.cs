@@ -10,6 +10,37 @@ namespace BladeEngine.Core
 {
     public static class Extensions
     {
+        public static IEqualityComparer<string> GetEqualityComparer(this StringComparison stringComparison)
+        {
+            IEqualityComparer<string> result;
+
+            switch (stringComparison)
+            {
+                case StringComparison.CurrentCulture:
+                    result = StringComparer.CurrentCulture;
+                    break;
+                case StringComparison.CurrentCultureIgnoreCase:
+                    result = StringComparer.CurrentCultureIgnoreCase;
+                    break;
+                case StringComparison.InvariantCulture:
+                    result = StringComparer.InvariantCulture;
+                    break;
+                case StringComparison.InvariantCultureIgnoreCase:
+                    result = StringComparer.InvariantCultureIgnoreCase;
+                    break;
+                case StringComparison.Ordinal:
+                    result = StringComparer.Ordinal;
+                    break;
+                case StringComparison.OrdinalIgnoreCase:
+                    result = StringComparer.OrdinalIgnoreCase;
+                    break;
+                default:
+                    result = StringComparer.Ordinal;
+                    break;
+            }
+
+            return result;
+        }
         public static bool DescendsFrom(this Type type, Type targetType)
         {
             var result = false;

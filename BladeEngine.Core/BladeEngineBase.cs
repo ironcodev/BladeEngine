@@ -23,6 +23,7 @@ namespace BladeEngine.Core
                                             string newDependencies,
                                             string keyword,
                                             string separator,
+                                            StringComparison stringComparison = StringComparison.Ordinal,
                                             Func<List<string>, string, string> dependencyRefiner = null)
         {
             List<string> init(string dependencies)
@@ -33,13 +34,15 @@ namespace BladeEngine.Core
                 {
                     foreach (var line in dependencies.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries))
                     {
-                        foreach (var dependency in line.Split(separator, StringSplitOptions.RemoveEmptyEntries))
+                        var lineItems = string.IsNullOrEmpty(separator) ? new string[] { line }: line.Split(separator, StringSplitOptions.RemoveEmptyEntries);
+
+                        foreach (var dependency in lineItems)
                         {
                             var current = dependency.Trim();
 
                             if (current.Length > 0)
                             {
-                                if (current.StartsWith(keyword, StringComparison.Ordinal))
+                                if (current.StartsWith(keyword, stringComparison))
                                 {
                                     if (char.IsWhiteSpace(current[keyword.Length]))
                                     {
@@ -66,10 +69,11 @@ namespace BladeEngine.Core
 
             var _currentDependencies = init(currentDependencies);
             var _newDependencies = init(newDependencies);
+            var comparer = stringComparison.GetEqualityComparer();
 
             foreach (var dependency in _newDependencies)
             {
-                if (!_currentDependencies.Contains(dependency, StringComparer.Ordinal))
+                if (!_currentDependencies.Contains(dependency, comparer))
                 {
                     _currentDependencies.Add(dependency);
                 }

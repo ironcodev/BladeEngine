@@ -4,29 +4,29 @@ using BladeEngine.Core.Exceptions;
 using BladeEngine.Core.Utils;
 using static BladeEngine.Core.Utils.LanguageConstructs;
 
-namespace BladeEngine.CSharp
+namespace BladeEngine.VisualBasic
 {
-    public class BladeEngineCSharp : BladeEngineBase<BladeEngineConfigCSharp>
+    public class BladeEngineVisualBasic : BladeEngineBase<BladeEngineConfigVisualBasic>
     {
-        public BladeEngineCSharp(): this(new BladeEngineConfigCSharp())
+        public BladeEngineVisualBasic(): this(new BladeEngineConfigVisualBasic())
         { }
-        public BladeEngineCSharp(BladeEngineConfigCSharp config) : base(config)
+        public BladeEngineVisualBasic(BladeEngineConfigVisualBasic config) : base(config)
         { }
         protected override string WriteLiteral(string str)
         {
-            return string.IsNullOrEmpty(str) ? "" : $"{Environment.NewLine}_buffer.Append(@\"{str.Replace("\"", "\"\"")}\");";
+            return string.IsNullOrEmpty(str) ? "" : $"{Environment.NewLine}_buffer.Append(\"{str.Replace("\"", "\"\"")}\")";
         }
         protected override BladeTemplateBase CreateTemplate(BladeTemplateSettings settings)
         {
-            return new BladeTemplateCSharp(this, settings);
+            return new BladeTemplateVisualBasic(this, settings);
         }
         protected override string WriteValue(string str)
         {
-            return $"{Environment.NewLine}_buffer.Append({str});";
+            return $"{Environment.NewLine}_buffer.Append({str})";
         }
         protected override string MergeDependencies(string currentDependencies, string newDependencies)
         {
-            return MergeDependencies(currentDependencies, newDependencies, "using", ";", StringComparison.Ordinal, (list, current) =>
+            return MergeDependencies(currentDependencies, newDependencies, "imports", "", StringComparison.OrdinalIgnoreCase, (list, current) =>
             {
                 var result = current;
                 var eqIndex = current.IndexOf('=');
@@ -47,7 +47,7 @@ namespace BladeEngine.CSharp
             current.Dependencies = Try(() => MergeDependencies(current.Dependencies,
                                                                 include.Dependencies + Environment.NewLine
                                                                 +
-                                                                (IsSomeString(include.Body + include.Functions, rejectAllWhitespaceStrings: true) ? $"using {include.GetModuleName()};": "")
+                                                                (IsSomeString(include.Body + include.Functions, rejectAllWhitespaceStrings: true) ? $"Imports {include.GetModuleName()}": "")
                                                             ), e => new BladeEngineMergeDependenciesException(reader.Row, reader.Col, include.Settings.Path, e));
             current.ExternalCode += $@"
 // ------ include: {include.Settings.Path} ({include.Settings.AbsolutePath}) (start) -------

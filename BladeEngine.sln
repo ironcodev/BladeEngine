@@ -7,9 +7,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BladeEngine.Core", "BladeEn
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BladeEngine.CLI", "BladeEngine.CLI\BladeEngine.CLI.csproj", "{4F52F5BB-73C3-42FF-A781-8052DE943499}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BladeEngine.CSharp", "BladeEngine.CSharp\BladeEngine.CSharp.csproj", "{55656B71-4730-48C6-9A96-506140A1D8A2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BladeEngine.CSharp", "BladeEngine.CSharp\BladeEngine.CSharp.csproj", "{55656B71-4730-48C6-9A96-506140A1D8A2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BladeEngine.Java", "BladeEngine.Java\BladeEngine.Java.csproj", "{92CD22FB-E45C-4A88-94A8-AA6B8C0710A2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BladeEngine.Java", "BladeEngine.Java\BladeEngine.Java.csproj", "{92CD22FB-E45C-4A88-94A8-AA6B8C0710A2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BladeEngine.VisualBasic", "BladeEngine.VisualBasic\BladeEngine.VisualBasic.csproj", "{E74E6E23-3CFD-4A00-B683-32B77772D2E3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{92CD22FB-E45C-4A88-94A8-AA6B8C0710A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{92CD22FB-E45C-4A88-94A8-AA6B8C0710A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{92CD22FB-E45C-4A88-94A8-AA6B8C0710A2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E74E6E23-3CFD-4A00-B683-32B77772D2E3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E74E6E23-3CFD-4A00-B683-32B77772D2E3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E74E6E23-3CFD-4A00-B683-32B77772D2E3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E74E6E23-3CFD-4A00-B683-32B77772D2E3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

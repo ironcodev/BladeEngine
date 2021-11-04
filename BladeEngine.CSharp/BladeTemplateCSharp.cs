@@ -146,7 +146,7 @@ namespace {GetModuleName()}
         }
         protected override string GetEngineName()
         {
-            return "csharp";
+            return "CSharp";
         }
     }
 }
