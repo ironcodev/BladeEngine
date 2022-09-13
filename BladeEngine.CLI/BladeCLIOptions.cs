@@ -550,6 +550,7 @@ namespace BladeEngine.CLI
                     break;
                 }
 
+                result.Data.RunnerOutputFile = RunnerOutputFile;
                 result.Succeeded = true;
                 result.Status = "Succeeded";
             } while (false);
