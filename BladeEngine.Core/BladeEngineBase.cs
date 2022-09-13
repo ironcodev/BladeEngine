@@ -1151,6 +1151,7 @@ namespace BladeEngine.Core
                         {
                             state = BladeTemplateParseState.BodyCodeStart;
 
+                            buffer.Append("%");
                             reader.Store();
                         }
 
